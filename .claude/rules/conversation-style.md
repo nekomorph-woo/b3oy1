@@ -8,7 +8,16 @@
 |------|------|
 | 对话、控制台输出、脚本注释、commit message | 简体中文 |
 | `.claude/skills/` 仓库维护技能（b3oy1-commit、b3oy1-manage-version 等） | 简体中文 |
+| `.fiber/` 本 repo 工件（`docs/agents/*.md`、`.scratch/`、issue / PR 正文） | 简体中文正文；必要术语保留原语种（见下） |
 | `plugins/*/`（fiber、spin 的分发产物：SKILL.md、agent、hook、plugin.json description、reference） | 英文 |
+
+### 保留原语种的「必要术语」
+
+中文化时以下保持原语种，其余叙述一律简体中文：
+
+- **代码 / 命令 / 路径 / 标识符**：`gh issue create`、`.fiber/docs/agents/`、`DISTILL.meta.json` 等
+- **技术专有名词**：hash、diff、side-by-side、commit、bucket、skill、tracker、issue、PR、ADR、`CONTEXT.md` 等
+- **工程 skill 协议约定的结构性标题**：wayfinder 的 `## Destination` / `## Notes` / `## Decisions so far` / `## Tickets` / `## Not yet specified` / `## Out of scope`，ticket 的 `## Question` 等——skill 靠这些标题解析 map / ticket，中文化会破坏协议兼容
 
 ## 变更摘要
 
