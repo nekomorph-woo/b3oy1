@@ -13,5 +13,5 @@ _避免_: 模板规则、默认规则、共享规则
 _避免_: 本地规则、自定义规则、项目规则
 
 **对话与输出风格**:
-b3oy1 栈关于 agent session 如何说话与排版的 canonical 约定——语言跟随用户 / 文档库 / 代码库的语言；技术术语、路径、标识符保留原语种；变更摘要以 Added/Changed/Fixed/Removed 领头；Why 先行、no ceremony、正面表述。作为 `b3oy1-conversation-style` 规则下发。
+b3oy1 栈关于 agent session 说话与排版的 canonical 约定；以 `b3oy1-conversation-style` 规则下发，规则正文是单一真源，本条只命名概念。
 _避免_: 输出风格、语气、语调

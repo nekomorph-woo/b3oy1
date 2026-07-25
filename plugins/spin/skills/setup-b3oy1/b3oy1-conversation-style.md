@@ -10,7 +10,7 @@ If the user's language is ambiguous, follow the language of the repo's existing 
 
 Keep the following in their original form — do not translate:
 
-- **Code / commands / paths / identifiers**: `gh issue create`, `.fiber/docs/agents/`, `DISTILL.meta.json`.
+- **Code / commands / paths / identifiers**: `gh issue create`, `.fiber/docs/agents/`, `.claude/rules/`.
 - **Technical proper nouns**: hash, diff, side-by-side, commit, bucket, skill, tracker, issue, PR, ADR, `CONTEXT.md`.
 - **Protocol structural headers that skills parse**: wayfinder's `## Destination` / `## Notes` / `## Decisions so far` / `## Tickets` / `## Not yet specified` / `## Out of scope`, and a ticket's `## Question` — skills match these by heading; translating them breaks protocol compatibility.
 

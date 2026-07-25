@@ -8,7 +8,7 @@
 |------|------|
 | 对话、控制台输出、脚本注释、commit message | 简体中文 |
 | `.claude/skills/` 仓库维护技能（b3oy1-commit、b3oy1-manage-version 等） | 简体中文 |
-| `.fiber/` 本 repo 工件（`CONTEXT.md`、`docs/adr/*.md`、`docs/agents/*.md`、`agent-skills.md`、`.scratch/`、issue / PR 正文） | 简体中文正文；必要术语保留原语种（见下） |
+| 本 repo 自产工件（`.fiber/` 下 `CONTEXT.md`、`docs/adr/*.md`、`docs/agents/*.md`、`.scratch/`；`.claude/rules/agent-skills.md`；issue / PR 正文） | 简体中文正文；必要术语保留原语种（见下） |
 | `plugins/*/`（fiber、spin 的分发产物：SKILL.md、agent、hook、plugin.json description、reference） | 英文 |
 
 ### 保留原语种的「必要术语」
