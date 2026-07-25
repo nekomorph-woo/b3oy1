@@ -30,6 +30,11 @@ The base setup writes the `## Agent skills` block into `CLAUDE.md` (or `AGENTS.m
 
 Write the block to **`.claude/rules/agent-skills.md`** instead, using the same block body the base setup produces.
 
+**Two paths to the same end** — take whichever fits the moment:
+
+- **Intercept** (preferred): pause the base setup before it writes the block, then land it in `.claude/rules/agent-skills.md` directly.
+- **Migrate** (fallback): if the base setup already wrote the block into `CLAUDE.md` / `AGENTS.md`, move the block body to `.claude/rules/agent-skills.md` and replace the in-place block with the pointer below. Nothing is lost — it's a relocation.
+
 Then, if a `## Agent skills` block already exists in `CLAUDE.md` / `AGENTS.md`, **replace it in place** with a one-line pointer:
 
     ## Agent skills

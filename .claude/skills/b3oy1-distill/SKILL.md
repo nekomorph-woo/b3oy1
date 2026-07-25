@@ -1,6 +1,6 @@
 ---
 name: b3oy1-distill
-description: 蒸馏 / 检查上游 matt skills——先 dry-run 出 HTML 报告，确认后再 apply。用户说「蒸馏」「distill」「检查上游」「同步上游」时用。
+description: 蒸馏上游 matt skills 到本仓库——先 dry-run 出 HTML 报告，确认后再 apply 写入。
 disable-model-invocation: true
 ---
 
