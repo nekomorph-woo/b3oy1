@@ -10,6 +10,9 @@
 
 跑法：python3 scripts/distill.py
 """
+import argparse
+import difflib
+import html as _html
 import json
 import re
 import shutil
@@ -315,26 +318,48 @@ def copy_skills_flat(skills):
     return names
 
 
+def transform_fiber_md(text):
+    """对单个非-setup skill 的 .md 文本应用全局路径前缀替换（纯函数，text→text）。
+
+    供 apply_global（实际蒸馏，写盘）与 --check dry-run（内存对比，#4 E 方案右侧上游变换）
+    共用同一变换核心——「若现在重跑 distill，本地每个 .md 会变成什么样」可预测、可复现。
+    """
+    for old, new in GLOBAL_REPLACEMENTS:
+        text = text.replace(old, new)
+    text = SRC_FIX.sub(r"\1/\2", text)  # 还原 src/<context>/ 下误伤
+    return text
+
+
+def _global_hits(orig):
+    """统计 orig 上每条 GLOBAL_REPLACEMENTS 规则的命中数（供 apply_global report）。"""
+    return [(old, new, n) for old, new in GLOBAL_REPLACEMENTS if (n := orig.count(old))]
+
+
 def apply_global():
-    """对所有非-setup skill 的所有 .md 应用全局路径前缀替换。"""
+    """对所有非-setup skill 的所有 .md 应用全局路径前缀替换（写盘）。"""
     report = {}
     for skill_dir in sorted(SKILLS_DIR.iterdir()):
         if not skill_dir.is_dir() or skill_dir.name == SETUP_NAME:
             continue
         for md in sorted(skill_dir.rglob("*.md")):
-            text = md.read_text()
-            orig = text
-            hits = []
-            for old, new in GLOBAL_REPLACEMENTS:
-                n = text.count(old)
-                if n:
-                    text = text.replace(old, new)
-                    hits.append((old, new, n))
-            text = SRC_FIX.sub(r"\1/\2", text)  # 还原 src/<context>/ 下误伤
+            orig = md.read_text()
+            text = transform_fiber_md(orig)
             if text != orig:
                 md.write_text(text)
-                report[f"{skill_dir.name}/{md.relative_to(skill_dir)}"] = hits
+                report[f"{skill_dir.name}/{md.relative_to(skill_dir)}"] = _global_hits(orig)
     return report
+
+
+def transform_setup_text(fname, text):
+    """对 setup skill 指定文件的文本应用 SETUP_REPLACEMENTS（纯函数，text→text）。
+
+    与 transform_fiber_md 同理：distill_setup（写盘）与 --check dry-run（E 方案右侧上游变换）
+    共用。若 SETUP_REPLACEMENTS 的 old 串在上游失配，上游原文保留——dry-run diff 会暴露
+    「SETUP_REPLACEMENTS 需更新」的信号（非噪音，见 #4 子问题 3 决策）。
+    """
+    for old, new in SETUP_REPLACEMENTS.get(fname, []):
+        text = text.replace(old, new)
+    return text
 
 
 def distill_setup():
@@ -348,15 +373,11 @@ def distill_setup():
         if not f.exists():
             print(f"  ⚠ {fname} not in setup, skip", file=sys.stderr)
             continue
-        text = f.read_text()
-        hits = []
-        for old, new in pairs:
-            n = text.count(old)
-            if n:
-                text = text.replace(old, new)
-            hits.append((old, new, n))
-        f.write_text(text)
-        report[fname] = hits
+        orig = f.read_text()
+        text = transform_setup_text(fname, orig)
+        if text != orig:
+            f.write_text(text)
+        report[fname] = [(old, new, orig.count(old)) for old, new in pairs]
     return report
 
 
@@ -394,13 +415,331 @@ def write_meta(commit, version, count, skills_by_bucket, extra_skills):
     meta_file.write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n")
 
 
-def main():
-    step("蒸馏开始")
+# ============================ --check HTML 报告 ============================
+# 报告形态：#5 prototype 选定方案——A 卡片总览（全量 skill + 状态徽章，变更卡可点跳转）
+# + A 折叠外壳（details/summary + note）+ C unified 红绿 diff + 右下角悬浮导航。
+# diff 数据源：#4 E 方案——左=本地原样、右=上游在内存跑蒸馏变换后（双边同形态，消除前缀噪音）。
+# 产物约定：ADR-0001——默认 distill-check.html（仓库根），每次覆盖，--check-out 可改路径，不入库。
+
+_REPORT_CSS = """
+:root { --g:#1f2328; --muted:#57606a; --bg:#f6f8fa; --card:#fff; --bd:#d0d7de;
+  --add:#1a7f37; --addbg:#dafbe1; --del:#cf222e; --delbg:#ffebe9; --chg:#bf8700; --chgbg:#fff8c5;
+  --addbd:#2da44e; --delbd:#cf222e; }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { font: 14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; margin:0; color:var(--g); background:var(--bg); }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 24px 20px 80px; }
+h1 { font-size: 18px; margin: 0 0 4px; }
+.sub { color: var(--muted); font-size: 12px; margin-bottom: 16px; }
+.summary { display:flex; gap:8px; flex-wrap:wrap; font-size:13px; background:var(--card);
+  border:1px solid var(--bd); border-radius:8px; padding:10px 14px; margin-bottom:18px; align-items:center; }
+.summary b { font-variant-numeric: tabular-nums; }
+.pill { padding:1px 8px; border-radius:999px; font-size:12px; font-weight:600; }
+.pill.chg { background:var(--chgbg); color:var(--chg); }
+.pill.add { background:var(--addbg); color:var(--add); }
+.pill.del { background:var(--delbg); color:var(--del); }
+.pill.unc { background:#eaeef2; color:var(--muted); }
+section { background:var(--card); border:1px solid var(--bd); border-radius:8px; padding:14px 16px; margin-bottom:16px; }
+section > h2 { font-size:13px; margin:0 0 10px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+.cards { display:grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap:8px; }
+.card { border:1px solid var(--bd); border-radius:6px; padding:8px 10px; background:#fff; }
+.card.changed { border-color:var(--chg); background:#fffbe8; }
+.card.added { border-color:var(--addbd); background:var(--addbg); }
+.card.removed { border-color:var(--delbd); background:var(--delbg); }
+.card .n { font-weight:600; }
+.card .h { font: 11px ui-monospace,monospace; color:var(--muted); margin-top:2px; }
+a.card { text-decoration:none; color:inherit; display:block; }
+a.card.jump { cursor:pointer; }
+a.card.jump:hover { box-shadow: 0 0 0 2px var(--chg); transform: translateY(-1px); transition: box-shadow .12s, transform .12s; }
+.badge { float:right; font-size:11px; font-weight:700; }
+.badge.unchanged{color:var(--muted);} .badge.changed{color:var(--chg);}
+.badge.added{color:var(--add);} .badge.removed{color:var(--del);}
+details.diff { border:1px solid var(--bd); border-radius:6px; margin-top:8px; background:#fff; scroll-margin-top: 12px; }
+details.diff > summary { cursor:pointer; padding:8px 12px; font-weight:600; font-size:13px; }
+.note { color:var(--muted); font-size:11px; padding:0 12px 4px; }
+pre.unified { font:12px ui-monospace,monospace; background:#fff; margin:0; padding:8px 12px;
+  overflow:auto; white-space:pre-wrap; }
+pre.unified span.a { color:var(--add); background:var(--addbg); display:block; }
+pre.unified span.d { color:var(--del); background:var(--delbg); display:block; }
+pre.unified span.h { color:var(--chg); display:block; }
+.collapsed-list { color:var(--muted); font-size:12px; }
+.hint { font-size:11px; color:var(--muted); margin-top:6px; }
+.fab-nav { position: fixed; right: 22px; bottom: 22px; z-index: 50; }
+.fab-orb { width: 40px; height: 40px; border-radius: 50%; background: var(--chg);
+  color: #fff; display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:14px; box-shadow: 0 2px 10px rgba(0,0,0,.22);
+  cursor: pointer; margin-left: auto; transition: transform .12s; }
+.fab-icon { width: 20px; height: 20px; }
+.fab-nav:hover .fab-orb { transform: scale(1.08); }
+.fab-list { position: absolute; right: 0; bottom: 48px; width: 280px; max-height: 0;
+  overflow: hidden; background: var(--card); border: 1px solid var(--bd);
+  border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.16); opacity: 0;
+  transform: translateY(6px); transition: opacity .18s ease, transform .18s ease, max-height .18s ease; }
+.fab-nav:hover .fab-list { opacity: 1; transform: translateY(0); max-height: 60vh; overflow:auto; }
+.fab-head { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); padding: 8px 12px 4px; }
+.fab-list a { display:block; padding: 8px 12px; font-size: 12px; border-top: 1px solid #eaeef2;
+  text-decoration:none; color: var(--g); }
+.fab-list a:hover { background: #f6f8fa; color: var(--chg); }
+"""
+
+_STATUS_CN = {"unchanged": "未变", "changed": "变更", "added": "新增", "removed": "删除"}
+
+
+def _slug(s):
+    """标题 → HTML id 片段（小写、非字母数字归一为 -）。"""
+    return re.sub(r"[^a-z0-9]+", "-", str(s).lower()).strip("-")
+
+
+def _badge(status):
+    return f'<span class="badge {status}">{_STATUS_CN[status]}</span>'
+
+
+def _pill_row(s):
+    parts = [f'<span><b>{s["total"]}</b> skills</span>',
+             f'<span class="pill chg">{s["chg"]} 变更</span>',
+             f'<span class="pill add">{s["add"]} 新增</span>',
+             f'<span class="pill del">{s["del"]} 删除</span>',
+             f'<span class="pill unc">{s["unc"]} 未变</span>']
+    if s.get("extra_n") is not None:
+        parts.append(f'<span><b>{s["extra_n"]}</b> extra</span>')
+    return "".join(parts)
+
+
+def _unified_body(lines):
+    """unified diff 行 → 红绿 HTML（增行绿、删行红、hunk/文件头黄）。"""
+    body = []
+    for l in lines:
+        esc = _html.escape(l)
+        if l.startswith("+++") or l.startswith("---") or l.startswith("@"):
+            body.append(f'<span class="h">{esc}</span>')
+        elif l.startswith("+"):
+            body.append(f'<span class="a">{esc}</span>')
+        elif l.startswith("-"):
+            body.append(f'<span class="d">{esc}</span>')
+        else:
+            body.append(esc + "\n")
+    return "".join(body)
+
+
+def _load_prev_hashes():
+    """从 DISTILL.meta.json 读上次基准。返回 (prev_by_bucket, prev_extra, prev_commit)。"""
+    prev_meta = FIBER / ".claude-plugin" / "DISTILL.meta.json"
+    if not prev_meta.exists():
+        return {}, {}, ""
+    try:
+        m = json.loads(prev_meta.read_text())
+    except json.JSONDecodeError:
+        return {}, {}, ""
+    by_bucket = {}
+    for b, skills in m.get("skills_hash_by_bucket", {}).items():
+        if isinstance(skills, list):  # 旧 schema（list，无 hash）
+            skills = {s: None for s in skills}
+        by_bucket[b] = skills
+    extra = {e["name"]: e.get("hash") for e in m.get("extra_skills", [])}
+    return by_bucket, extra, m.get("source", {}).get("commit", "")
+
+
+def _build_diff_blocks(matt_src, changes, ex_changes):
+    """对 content_changed 的 skill 产 unified diff 块（#4 E 方案：右=上游在内存跑变换）。
+
+    added/removed 无 side-by-side 对应，仅在总览标状态。返回 [{title,lines,note,id,skill_key}]。
+    """
+    blocks = []
+    for bucket, ch in changes.items():
+        for skill in ch.get("content_changed", []):
+            is_setup = (skill == SETUP_NAME)
+            up_dir = matt_src / "skills" / bucket / skill
+            local_dir = SKILLS_DIR / skill
+            if not local_dir.is_dir():
+                continue
+            for up_md in sorted(up_dir.rglob("*.md")):
+                rel = up_md.relative_to(up_dir).as_posix()
+                local_md = local_dir / rel
+                if not local_md.exists():
+                    continue
+                left = local_md.read_text()
+                right_raw = up_md.read_text()
+                if is_setup:
+                    right = transform_setup_text(rel, right_raw)
+                    note = ("E 方案 · 左=本地原样 · 右=上游跑 SETUP_REPLACEMENTS"
+                            "（old 失配保留上游原文 → 暴露「规则需更新」信号，非噪音）")
+                    tofile = f"upstream-transformed/{rel}"
+                else:
+                    right = transform_fiber_md(right_raw)
+                    note = "E 方案 · 左=本地原样 · 右=上游跑 GLOBAL_REPLACEMENTS+SRC_FIX"
+                    tofile = f"upstream-transformed/{rel}"
+                lines = list(difflib.unified_diff(
+                    left.splitlines(), right.splitlines(),
+                    fromfile=f"local/{rel}", tofile=tofile, lineterm=""))
+                if not lines:
+                    continue
+                blocks.append({
+                    "title": f"{bucket}/{skill} · {rel}", "lines": lines, "note": note,
+                    "id": f"diff-{_slug(bucket)}-{_slug(skill)}-{_slug(rel)}",
+                    "skill_key": f"{bucket}/{skill}",
+                })
+    for ch in ex_changes or []:
+        if ch["kind"] != "content_changed":
+            continue
+        name = ch["name"]
+        ex = next((e for e in EXTRA_SKILLS if e["name"] == name), None)
+        if not ex:
+            continue
+        up_dir = matt_src / "skills" / ex["bucket"] / name
+        local_dir = ROOT / "plugins" / ex["target"] / "skills" / name
+        if not local_dir.is_dir():
+            continue
+        for up_md in sorted(up_dir.rglob("*.md")):
+            rel = up_md.relative_to(up_dir).as_posix()
+            local_md = local_dir / rel
+            if not local_md.exists():
+                continue
+            lines = list(difflib.unified_diff(
+                local_md.read_text().splitlines(), up_md.read_text().splitlines(),
+                fromfile=f"local/{rel}", tofile=f"upstream/{rel}", lineterm=""))
+            if not lines:
+                continue
+            blocks.append({
+                "title": f"extra/{name} · {rel}", "lines": lines,
+                "note": "左=本地原样 · 右=上游原样（extra 不变换）",
+                "id": f"diff-extra-{_slug(name)}-{_slug(rel)}",
+                "skill_key": f"extra/{name}",
+            })
+    return blocks
+
+
+def _render_card(r, label, sub, first_diff):
+    """有 diff 的变更卡渲染成 <a>（跳转到首个 diff），否则普通 <div>。"""
+    target = first_diff.get(r["skill_key"])
+    prev_str = f' ← {r["prev"]}' if r.get("status") == "changed" and r.get("prev") else ""
+    inner = f'{_badge(r["status"])}<div class="n">{label}</div><div class="h">{sub}{prev_str}</div>'
+    if target:
+        return f'<a class="card {r["status"]} jump" href="#{target}">{inner}</a>'
+    return f'<div class="card {r["status"]}">{inner}</div>'
+
+
+def write_check_report(out_path, matt_src, prev_commit, changes, ex_changes):
+    """生成 --check HTML 报告并写盘。返回退出码：有变更=2，无变更=0。"""
+    prev_by_bucket, prev_extra, _ = _load_prev_hashes()
+
+    rows = []
+    for bucket in INCLUDED_BUCKETS:
+        bdir = matt_src / "skills" / bucket
+        if not bdir.is_dir():
+            continue
+        prev = prev_by_bucket.get(bucket, {})
+        seen = set()
+        for d in sorted(bdir.iterdir()):
+            if not (d.is_dir() and (d / "SKILL.md").exists()):
+                continue
+            name, h = d.name, skill_hash(d)
+            seen.add(name)
+            if name not in prev:
+                status = "added"
+            elif prev[name] is None or prev[name] == h:
+                status = "unchanged"
+            else:
+                status = "changed"
+            rows.append({"name": name, "bucket": bucket, "hash": h,
+                         "prev": prev.get(name) or "—", "status": status,
+                         "skill_key": f"{bucket}/{name}"})
+        for name in sorted(set(prev) - seen):
+            rows.append({"name": name, "bucket": bucket, "hash": "—",
+                         "prev": prev[name], "status": "removed",
+                         "skill_key": f"{bucket}/{name}"})
+
+    extra_rows = []
+    for ex in EXTRA_SKILLS:
+        sdir = matt_src / "skills" / ex["bucket"] / ex["name"]
+        if not (sdir.is_dir() and (sdir / "SKILL.md").exists()):
+            continue
+        name, h = ex["name"], skill_hash(sdir)
+        if name not in prev_extra:
+            status = "added"
+        elif prev_extra[name] is None or prev_extra[name] == h:
+            status = "unchanged"
+        else:
+            status = "changed"
+        extra_rows.append({"name": name, "target": ex["target"], "bucket": ex["bucket"],
+                           "hash": h, "prev": prev_extra.get(name) or "—", "status": status,
+                           "skill_key": f"extra/{name}"})
+
+    blocks = _build_diff_blocks(matt_src, changes, ex_changes)
+    first_diff = {}
+    for b in blocks:
+        first_diff.setdefault(b["skill_key"], b["id"])
+
+    summary = {
+        "total": len([r for r in rows if r["status"] != "removed"]),
+        "chg": len([r for r in rows if r["status"] == "changed"]),
+        "add": len([r for r in rows if r["status"] == "added"]),
+        "del": len([r for r in rows if r["status"] == "removed"]),
+        "unc": len([r for r in rows if r["status"] == "unchanged"]),
+        "extra_n": len(extra_rows) if extra_rows else None,
+    }
+    has_change = bool(changes or ex_changes)
+
+    out = [f'<!doctype html><html lang=zh><meta charset=utf8>'
+           f"<meta name=viewport content='width=device-width,initial-scale=1'>"
+           f"<title>蒸馏检查报告</title><style>{_REPORT_CSS}</style><body><div class=wrap>"]
+    out.append(f'<h1>蒸馏检查报告 <span class="sub">dry-run · vs 上次 meta {prev_commit[:8] or "—"}</span></h1>')
+    out.append(f'<div class="summary">{_pill_row(summary)}</div>')
+    for bucket in INCLUDED_BUCKETS:
+        bs = [r for r in rows if r["bucket"] == bucket]
+        out.append(f'<section><h2>bucket: {bucket} · {len(bs)} skills</h2><div class="cards">')
+        out.extend(_render_card(r, r["name"], r["hash"], first_diff) for r in bs)
+        out.append('</div></section>')
+    if extra_rows:
+        out.append('<section><h2>extra skills</h2><div class="cards">')
+        out.extend(_render_card(r, f'{r["target"]}/{r["name"]}',
+                                f'from {r["bucket"]} · {r["hash"]}', first_diff)
+                  for r in extra_rows)
+        out.append('</div></section>')
+    out.append('<section><h2>变更详情（unified diff）</h2>')
+    for b in blocks:
+        out.append(f'<details class="diff" open id="{b["id"]}"><summary>{_html.escape(b["title"])}</summary>'
+                   f'<div class="note">{b["note"]}</div>'
+                   f'<pre class="unified">{_unified_body(b["lines"])}</pre></details>')
+    if not blocks:
+        out.append('<p class="collapsed-list">无内容变更。</p>')
+    out.append('</section>')
+    out.append('<p class="hint">dry-run 检查报告 · E 方案 diff（左=本地原样，右=上游跑蒸馏变换）· 不写入任何蒸馏产物</p>')
+
+    if blocks:
+        items = "".join(f'<a href="#{b["id"]}">{_html.escape(b["title"])}</a>' for b in blocks)
+        orb = ('<svg class="fab-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" '
+               'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+               'stroke-linejoin="round">'
+               '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/>'
+               '<path d="M9 10h6"/><path d="M12 13V7"/><path d="M9 17h6"/></svg>')
+        out.append(f'<div class="fab-nav"><div class="fab-orb" title="变更导航">{orb}</div>'
+                   f'<div class="fab-list"><div class="fab-head">变更详情 · {len(blocks)}</div>'
+                   f'{items}</div></div>')
+
+    out.append('</div></body></html>')
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text("".join(out), encoding="utf-8")
+    return 2 if has_change else 0
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(
+        prog="distill.py",
+        description="蒸馏 mattpocock/skills。--check 进入 dry-run 检查模式（只检查 + 产 HTML 报告，不写入）。",
+    )
+    parser.add_argument("--check", action="store_true",
+                        help="dry-run：clone + 检查 + 产 HTML 报告，跳过所有蒸馏写入")
+    parser.add_argument("--check-out", metavar="PATH", default="distill-check.html",
+                        help="--check 的 HTML 报告输出路径（默认：仓库根 distill-check.html，每次覆盖）")
+    args = parser.parse_args(argv)
+
+    step("dry-run 检查模式" if args.check else "蒸馏开始")
     commit = clone()
     skills, version = read_skill_list()
     step(f"matt version={version} commit={commit[:8]} skills={len(skills)}")
 
-    # 蒸馏前检查：bucket 存在 + skill 增删 + 内容变更 + extra skills
+    # 检查（蒸馏前 / dry-run 共用）：bucket 存在 + skill 增删 + 内容变更 + extra skills
     errors, changes, current = check_buckets(TMP)
     ex_errors, ex_changes, ex_current = check_extra(TMP)
     prev_meta = FIBER / ".claude-plugin" / "DISTILL.meta.json"
@@ -412,10 +751,19 @@ def main():
             pass
     print_check_report(errors, changes, current, prev_commit, ex_current, ex_changes)
     if errors or ex_errors:
-        print("\n❌ 终止蒸馏（bucket 或 extra skill 缺失）")
+        print("\n❌ 终止（bucket 或 extra skill 缺失）")
         for e in list(errors) + list(ex_errors):
             print(f"  ERROR: {e}")
         sys.exit(1)
+
+    if args.check:
+        out_path = Path(args.check_out)
+        if not out_path.is_absolute():
+            out_path = ROOT / out_path
+        rc = write_check_report(out_path, TMP, prev_commit, changes, ex_changes)
+        print(f"\nHTML 报告：{out_path}")
+        print(f"  打开：open '{out_path}'")
+        sys.exit(rc)
 
     names = copy_skills_flat(skills)
     step(f"拷贝 {len(names)} skills（平铺）→ {SKILLS_DIR.relative_to(ROOT)}")
