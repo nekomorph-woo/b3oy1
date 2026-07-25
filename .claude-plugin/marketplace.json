@@ -1,0 +1,25 @@
+{
+  "name": "b3oy1",
+  "owner": {
+    "name": "nekomorph_566",
+    "email": "chaoowoo2233@gmail.com"
+  },
+  "metadata": {
+    "description": "Decision-driven engineering skills and support tooling — lightweight, verifiable workflows.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "fiber",
+      "source": "./plugins/fiber",
+      "description": "Agent skills for decision-driven engineering — grilling, spec and tracer-bullet ticket flows, TDD, code review, and domain modelling. Verifiable loops, not guesswork.",
+      "version": "0.1.0"
+    },
+    {
+      "name": "spin",
+      "source": "./plugins/spin",
+      "description": "Support tooling for the fiber workflow — project setup, version management, rendering, and custom helpers.",
+      "version": "0.1.0"
+    }
+  ]
+}

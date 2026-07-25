@@ -1,0 +1,54 @@
+{
+  "source": {
+    "repo": "mattpocock/skills",
+    "url": "https://github.com/mattpocock/skills",
+    "version": "1.2.0",
+    "commit": "ed37663cc5fbef691ddfecd080dff42f7e7e350d",
+    "license": "MIT"
+  },
+  "distilled_at": "2026-07-25",
+  "included_buckets": [
+    "engineering",
+    "productivity"
+  ],
+  "skills_hash_by_bucket": {
+    "engineering": {
+      "research": "6e70265f3f53",
+      "domain-modeling": "9c70797062c1",
+      "wayfinder": "a4d1425ccdb7",
+      "setup-matt-pocock-skills": "41a52a12eaeb",
+      "diagnosing-bugs": "30d504909484",
+      "code-review": "a0a6ea333e7f",
+      "to-tickets": "628725128482",
+      "ask-matt": "3df81fef4456",
+      "improve-codebase-architecture": "938bc1086ebc",
+      "to-spec": "305911f9a650",
+      "codebase-design": "6af47ce35b6d",
+      "triage": "ac70de32fe89",
+      "prototype": "34a2e7866454",
+      "resolving-merge-conflicts": "0569ceadd024",
+      "grill-with-docs": "8683d99a2d34",
+      "implement": "37152c34127f",
+      "tdd": "e8ecf2e6373d"
+    },
+    "productivity": {
+      "writing-great-skills": "396fd1098e3f",
+      "handoff": "cdbcb9150df2",
+      "teach": "63feafa166e2",
+      "grill-me": "25b02cbdacb3",
+      "grilling": "ee2160925846"
+    }
+  },
+  "extra_skills": [
+    {
+      "bucket": "personal",
+      "name": "edit-article",
+      "target": "spin",
+      "hash": "be02c5ae0b89"
+    }
+  ],
+  "distilled_skills": 22,
+  "distill_strategy": "config-driven + global path-prefix: all non-setup skills path-replaced to .fiber/ (docs/agents .scratch .out-of-scope docs/adr CONTEXT.md); setup separately fine-tuned (tracker default→local, domain file-structure, multi-context src/ kept); filenames preserved; included buckets flattened",
+  "namespace": ".fiber/",
+  "update_note": "Only included_buckets distilled (deprecated/in-progress/misc/personal intentionally skipped). git diff <commit>..HEAD -- skills/{engineering,productivity}; rerun distill.py"
+}

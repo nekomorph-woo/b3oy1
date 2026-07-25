@@ -1,0 +1,5 @@
+{
+  "name": "spin",
+  "description": "Support tooling for the fiber workflow — project setup, version management, rendering, and custom helpers.",
+  "version": "0.1.0"
+}
