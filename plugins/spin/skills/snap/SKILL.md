@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Snap
 
-Write one conventional-commit message for the staged diff, then commit. Link any issue the conversation already references — no signal, no footer, no prompt.
+Write one conventional-commit message for the staged diff, then commit. Link any issue the conversation already references.
 
 Snap serves any project. It detects the commit language from the repo's own history and rules, and infers `type` / `scope` from the paths touched. It does not bump versions or run project-specific release flow — pair it with a project-level skill when a commit must also version something.
 
@@ -62,7 +62,7 @@ Completion: every issue referenced in context is cited, or the message has no fo
 
 `git commit` with the message. Print a short summary: the type and scope chosen, any linked issues, and how many commits sit ahead of `origin`.
 
-Completion: the commit exists; the summary lets the reader judge what landed and whether to push.
+Completion: the commit exists; the summary states the type, scope, any linked issues, and the count of commits ahead of `origin`.
 
 ## type
 
