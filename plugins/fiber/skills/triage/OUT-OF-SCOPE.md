@@ -8,10 +8,11 @@ The `.fiber/.out-of-scope/` directory in a repo stores persistent records of rej
 ## Directory structure
 
 ```
-.fiber/.out-of-scope/
-├── dark-mode.md
-├── plugin-system.md
-└── graphql-api.md
+.fiber/
+└── .out-of-scope/
+    ├── dark-mode.md
+    ├── plugin-system.md
+    └── graphql-api.md
 ```
 
 One file per **concept**, not per issue. Multiple issues requesting the same thing are grouped under one file.

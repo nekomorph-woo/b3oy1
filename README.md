@@ -171,7 +171,7 @@ python3 scripts/distill.py
 - 只改 `setup` skill 本体 + 2 个 seed template 的路径（→ `.fiber/`）
 - 其余 21 个 skill 的 `.md` 原样拷贝，文件名全保留
 - 白名单 bucket：`engineering` / `productivity`（matt 新增目录默认不取）
-- skill 灵魂不动，只做机械安全的路径替换
+- skill 灵魂不动，只做机械安全的路径替换：正文连续路径走字面量前缀替换；ASCII 目录树走路径重写（展平节点路径 → 应用前缀规则 → 重建树），规则作用域从裸字符串升级到节点路径，仍声明式、可预测（见 `.fiber/docs/adr/0001-distill-tree-rewrite.md`）
 
 版本与 hash 追溯记在 `plugins/fiber/.claude-plugin/DISTILL.meta.json`——上游 commit、每个 skill 的 hash、蒸馏日期、策略说明都在里面，方便审计「改了什么、为什么改」。
 

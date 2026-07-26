@@ -92,11 +92,9 @@ SETUP_REPLACEMENTS = {
          "**`.fiber/docs/adr/`** — read ADRs"),
         ("presence of `CONTEXT-MAP.md` at the root",
          "presence of `.fiber/CONTEXT-MAP.md`"),
-        # file structure 块：产物根 / → .fiber/，src/（代码目录）移出平级不挪
-        ("/\n├── CONTEXT.md\n├── docs/adr/\n│   ├── 0001-event-sourced-orders.md\n│   └── 0002-postgres-for-write-model.md\n└── src/",
-         ".fiber/\n├── CONTEXT.md\n└── docs/adr/\n    ├── 0001-event-sourced-orders.md\n    └── 0002-postgres-for-write-model.md\nsrc/"),
-        ("/\n├── CONTEXT-MAP.md\n├── docs/adr/                          ← system-wide decisions\n└── src/\n    ├── ordering/\n    │   ├── CONTEXT.md\n    │   └── docs/adr/                  ← context-specific decisions\n    └── billing/\n        ├── CONTEXT.md\n        └── docs/adr/",
-         ".fiber/\n├── CONTEXT-MAP.md\n└── docs/adr/                          ← system-wide decisions\nsrc/\n├── ordering/\n│   ├── CONTEXT.md\n│   └── docs/adr/                  ← context-specific decisions\n└── billing/\n    ├── CONTEXT.md\n    └── docs/adr/"),
+        # file structure 块的 ASCII 目录树不再手工整段字面量替换——交由
+        # _apply_tree_rewrite 的路径重写统一处理（见 transform_setup_text）。
+        # 上游树结构更新后自动正确，无需在此维护 old/new 字面量（issue #21 双轨统一）。
     ],
     "issue-tracker-local.md": [
         (".scratch/", ".fiber/.scratch/"),
@@ -318,16 +316,238 @@ def copy_skills_flat(skills):
     return names
 
 
-def transform_fiber_md(text):
-    """对单个非-setup skill 的 .md 文本应用全局路径前缀替换（纯函数，text→text）。
+# ============================ ASCII 目录树重写（issue #21） ============================
+# GLOBAL_REPLACEMENTS 的裸字符串替换对 ASCII 树跨行路径失配：docs/ 与 adr/ 被树干拆到
+# 两行，`docs/adr/` 命中不了。结果同一棵树被半改——单行（CONTEXT.md）改了、跨行（docs/adr/）
+# 漏改；multi-context 时 GLOBAL 还误伤 src/<ctx>/ 下的 per-context 文档，SRC_FIX 想还原
+# 同样跨行失灵。双向错误集中在 domain-modeling/SKILL.md 两棵树。
+#
+# 机制（/prototype 验证）：把树展平成节点完整路径 → 对路径应用窄前缀重写规则 →
+# 按新路径重建树 → serialize。拓扑重排（src/ 提升为顶层）是路径重写的副产品。per-context
+# 与根级同名文档（CONTEXT.md）在完整路径上可区分，跨行也不再失配。parse 失败（框图、多根、
+# 无节点）保留原文，--check diff 暴露「需关注」信号（延续 distill.py:565-566 容错哲学）。
 
-    供 apply_global（实际蒸馏，写盘）与 --check dry-run（内存对比，#4 E 方案右侧上游变换）
-    共用同一变换核心——「若现在重跑 distill，本地每个 .md 会变成什么样」可预测、可复现。
+# 节点行：前导（|│ 空格）+ 分支（├└，ASCII fallback +）+ 连接（──/--，2+）+ 空格 + 名字[ ← 注释]
+_TREE_NODE = re.compile(r'^([|│ ]*)([├└+])([─-]{2,}) (.+?)\s*$')
+# 框图字符出现（角落 ┌┐┘┤ + 连线 ┬┴┼）→ 判为非树（原样保留，不当作目录树处理）
+_BOX_ART = re.compile(r'[┌┐┘┤┬┴┼]')
+# 根级系统文档名：规则 A 下进 .fiber/；per-context（src/ 下）靠完整路径第一段区分，不动。
+# 与 GLOBAL_REPLACEMENTS 同源：字面量替换管正文连续路径，此处管树节点路径段——新增系统
+# 文档时两处都要加（GLOBAL 加 old→.fiber/old 对，此处加路径段名）。
+_SYSTEM_NAMES = frozenset({'CONTEXT.md', 'CONTEXT-MAP.md', 'docs', '.scratch', '.out-of-scope'})
+
+# 代码 fence：```lang\n ... \n```（非贪婪，跨行）
+_FENCE = re.compile(r'```[^\n]*\n.*?\n```', re.S)
+
+
+def _parse_tree(body_lines):
+    """把 fence 内的行解析成 (root_name, children)。
+
+    返回:
+      ('skip', reason) — 多根树，fail-loud 原样保留（--check 报警，不静默合并）
+      None             — 非树（框图 / 无节点 / 非法结构），调用方按 passthrough 处理
+      (root, children) — 解析成功；children=[{'name','is_dir','comment','children'}, ...]
     """
+    if _BOX_ART.search('\n'.join(body_lines)):
+        return None
+    root_name = None
+    node_lines = []
+    for raw in body_lines:
+        if not raw.strip():
+            continue
+        if _TREE_NODE.match(raw):
+            node_lines.append(raw)
+            continue
+        # 非节点非空行：root 或多根信号
+        if root_name is None:
+            if raw[0].isspace() or raw[0] in '│|':
+                return None  # 首个非节点行带前导，非法
+            root_name = raw.strip()
+        else:
+            if not (raw[0].isspace() or raw[0] in '│|'):
+                # 顶格第二行：仅当确有节点行才是 multi-root fail-loud；否则是普通文本（非树）
+                return ('skip', f'multi-root: {raw.strip()!r}') if node_lines else None
+            return None  # root 之后又出现带前导的非节点行，非标准树
+    if root_name is None or not node_lines:
+        return None
+
+    children = []
+    stack = [(-1, children)]  # (depth, sibling_list)
+    for raw in node_lines:
+        m = _TREE_NODE.match(raw)
+        leading, rest = m.group(1), m.group(4)
+        if '←' in rest:
+            name_part, _, comment = rest.partition('←')
+            name, comment = name_part.rstrip(), comment.strip()
+        else:
+            name, comment = rest.rstrip(), None
+        depth = len(leading) // 4
+        node = {'name': name, 'is_dir': name.endswith('/'), 'comment': comment, 'children': []}
+        while stack and stack[-1][0] >= depth:
+            stack.pop()
+        stack[-1][1].append(node)
+        stack.append((depth, node['children']))
+    return (root_name, children)
+
+
+def _flatten_tree(root_name, children):
+    """展平成 [(full_path, is_dir, comment)]，DFS 序（保留原树顺序，供 rebuild 保序）。
+
+    匿名根 `/` 不产出路径条目（其子直接为顶层）；命名根（如 .out-of-scope/）本身作为
+    一条路径，使规则 A 把整棵命名树移进 .fiber/。
+    """
+    paths = []
+    if root_name == '/':
+        base = ''
+    else:
+        base = root_name.rstrip('/')
+        paths.append((base + '/', True, None))
+    def dfs(prefix, nodes):
+        for node in nodes:
+            full = prefix + node['name']
+            paths.append((full, node['is_dir'], node['comment']))
+            if node['children']:
+                dfs(full if full.endswith('/') else full + '/', node['children'])
+    dfs(base + '/' if base else '', children)
+    return paths
+
+
+def _rewrite_a(full):
+    """规则 A（默认）：根级系统文档进 .fiber/，src/ 下 per-context 不动。
+
+    per-context 靠完整路径第一段区分：src/ordering/CONTEXT.md 第一段是 src，不在
+    _SYSTEM_NAMES，自动不动——这是「路径重写」相对「裸字符串替换」的根本优势。
+    """
+    first = full.lstrip('/').split('/')[0]
+    if first in _SYSTEM_NAMES:
+        return '.fiber/' + full.lstrip('/')
+    return full.lstrip('/')
+
+
+def _rewrite_b(full):
+    """规则 B（占位）：per-context 的系统文档也带 .fiber（放各 context 自己的 .fiber/ 下）。
+
+    A/B 的最终决策不阻塞本机制（issue #21 Out of Scope）；引擎参数化支持两模式，默认 A。
+    """
+    out = []
+    for seg in full.split('/'):
+        if seg in _SYSTEM_NAMES:
+            out.append('.fiber')
+        out.append(seg)
+    return '/'.join(out).lstrip('/')
+
+
+def _rebuild_tree(paths):
+    """按重写后路径重建森林（trie，子节点按首次出现顺序保持）。返回顶层 dict。"""
+    forest = {}
+    for (full, is_dir, comment) in paths:
+        segs = [s for s in full.split('/') if s]
+        if not segs:
+            continue
+        cur_children = forest
+        node = None
+        for seg in segs:
+            if seg not in cur_children:
+                cur_children[seg] = {'children': {}, 'is_dir': False, 'comment': None}
+            node = cur_children[seg]
+            cur_children = node['children']
+        node['is_dir'] = is_dir  # 最后一段：原始节点是否目录（中间段由有 children 隐含目录）
+        if comment:
+            node['comment'] = comment
+    return forest
+
+
+def _serialize_forest(forest):
+    """森林 → 行列表（box-drawing，多根顶格紧邻，注释单空格不对齐）。"""
+    lines = []
+    for name in forest:
+        node = forest[name]
+        display = name + ('/' if (node['children'] or node['is_dir']) else '')
+        lines.append(display + (f' ← {node["comment"]}' if node['comment'] else ''))
+        _serialize_children(node['children'], '', lines)
+    return lines
+
+
+def _serialize_children(children, prefix, lines):
+    names = list(children)
+    for i, name in enumerate(names):
+        node = children[name]
+        last = i == len(names) - 1
+        display = name + ('/' if (node['children'] or node['is_dir']) else '')
+        connector = '└── ' if last else '├── '
+        lines.append(prefix + connector + display + (f' ← {node["comment"]}' if node['comment'] else ''))
+        if node['children']:
+            _serialize_children(node['children'], prefix + ('    ' if last else '│   '), lines)
+
+
+def _rewrite_tree_body(body, rule='a'):
+    """对单个 fence body（不含围栏）尝试树重写。
+
+    返回 (kind, new_body):
+      ('tree', str)        — 是树，已重写
+      ('skip', body)       — 多根 fail-loud，原样
+      ('passthrough', body)— 非树（框图/无节点/非法），原样
+    """
+    parsed = _parse_tree(body.splitlines())
+    if isinstance(parsed, tuple) and parsed and parsed[0] == 'skip':
+        return ('skip', body)
+    if parsed is None:
+        return ('passthrough', body)
+    root_name, children = parsed
+    fn = _rewrite_a if rule == 'a' else _rewrite_b
+    paths = [(fn(p), d, c) for (p, d, c) in _flatten_tree(root_name, children)]
+    forest = _rebuild_tree(paths)
+    return ('tree', '\n'.join(_serialize_forest(forest)))
+
+
+def _apply_tree_rewrite(text, base_transform=None):
+    """对 text 内的树 fence 应用路径重写。
+
+    base_transform: 对非 fence 文本与 passthrough fence 的额外变换（None=原样）。
+    树 fence 走树重写（不经 base_transform，避免 GLOBAL 对跨行树半改）；
+    skip（多根）原样保留（fail-loud，diff 暴露）；passthrough（非树）走 base_transform
+    保持现状语义。
+    """
+    out, pos = [], 0
+    for m in _FENCE.finditer(text):
+        before = text[pos:m.start()]
+        out.append(base_transform(before) if base_transform else before)
+        fence_text = m.group(0)
+        first_nl = fence_text.index('\n')
+        last_nl = fence_text.rindex('\n')
+        lang = fence_text[3:first_nl]
+        body = fence_text[first_nl + 1:last_nl]
+        kind, new_body = _rewrite_tree_body(body)
+        if kind == 'tree':
+            out.append(f'```{lang}\n{new_body}\n```')
+        elif kind == 'passthrough' and base_transform:
+            out.append(base_transform(fence_text))
+        else:  # skip 原样 / passthrough 无 base_transform
+            out.append(fence_text)
+        pos = m.end()
+    tail = text[pos:]
+    out.append(base_transform(tail) if base_transform else tail)
+    return ''.join(out)
+
+
+def _global_transform(text):
+    """GLOBAL 路径前缀替换 + SRC_FIX 还原（原 transform_fiber_md 的字面量逻辑，纯函数）。"""
     for old, new in GLOBAL_REPLACEMENTS:
         text = text.replace(old, new)
-    text = SRC_FIX.sub(r"\1/\2", text)  # 还原 src/<context>/ 下误伤
-    return text
+    return SRC_FIX.sub(r'\1/\2', text)
+
+
+def transform_fiber_md(text):
+    """对单个非-setup skill 的 .md 文本应用路径约定（纯函数，text→text）。
+
+    树 fence（ASCII 目录树）走路径重写（parse→flatten→rewrite→rebuild→serialize），
+    克服 GLOBAL 裸字符串替换对跨行树路径的失配（issue #21）。其余文本（prose、非树
+    fence）走 GLOBAL+SRC_FIX，行为不变。
+
+    供 apply_global（写盘）与 --check dry-run（E 方案右侧上游变换）共用同一变换核心——
+    「若现在重跑 distill，本地每个 .md 会变成什么样」可预测、可复现、幂等。
+    """
+    return _apply_tree_rewrite(text, base_transform=_global_transform)
 
 
 def _global_hits(orig):
@@ -351,7 +571,11 @@ def apply_global():
 
 
 def transform_setup_text(fname, text):
-    """对 setup skill 指定文件的文本应用 SETUP_REPLACEMENTS（纯函数，text→text）。
+    """对 setup skill 指定文件的文本应用 SETUP_REPLACEMENTS + 树重写（纯函数，text→text）。
+
+    SETUP_REPLACEMENTS 只保留语义措辞规则（tracker local-first、domain root 措辞等）；
+    ASCII 目录树（domain.md 的 file-structure 块）改走 _apply_tree_rewrite 路径重写，
+    与 transform_fiber_md 共用同一树处理逻辑（双轨统一，issue #21）。
 
     与 transform_fiber_md 同理：distill_setup（写盘）与 --check dry-run（E 方案右侧上游变换）
     共用。若 SETUP_REPLACEMENTS 的 old 串在上游失配，上游原文保留——dry-run diff 会暴露
@@ -359,7 +583,7 @@ def transform_setup_text(fname, text):
     """
     for old, new in SETUP_REPLACEMENTS.get(fname, []):
         text = text.replace(old, new)
-    return text
+    return _apply_tree_rewrite(text, base_transform=None)
 
 
 def distill_setup():

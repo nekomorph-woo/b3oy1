@@ -17,9 +17,10 @@ Single-context repo (most repos):
 ```
 .fiber/
 ├── CONTEXT.md
-└── docs/adr/
-    ├── 0001-event-sourced-orders.md
-    └── 0002-postgres-for-write-model.md
+└── docs/
+    └── adr/
+        ├── 0001-event-sourced-orders.md
+        └── 0002-postgres-for-write-model.md
 src/
 ```
 
@@ -28,14 +29,17 @@ Multi-context repo (presence of `.fiber/CONTEXT-MAP.md`):
 ```
 .fiber/
 ├── CONTEXT-MAP.md
-└── docs/adr/                          ← system-wide decisions
+└── docs/
+    └── adr/ ← system-wide decisions
 src/
 ├── ordering/
 │   ├── CONTEXT.md
-│   └── docs/adr/                  ← context-specific decisions
+│   └── docs/
+│       └── adr/ ← context-specific decisions
 └── billing/
     ├── CONTEXT.md
-    └── docs/adr/
+    └── docs/
+        └── adr/
 ```
 
 ## Use the glossary's vocabulary
