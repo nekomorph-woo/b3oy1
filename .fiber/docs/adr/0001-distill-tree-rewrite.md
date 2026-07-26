@@ -1,6 +1,6 @@
 # distill ASCII 目录树路径重写
 
-distill 对 SKILL.md 里 ASCII 目录树采用「展平节点完整路径 → 应用窄前缀重写规则 → 按新路径重建树」机制（`scripts/distill.py` 的 `_parse_tree` / `_flatten_tree` / `_rewrite_a` / `_rebuild_tree` / `_serialize_forest`），替代原先对树也做裸 `str.replace`。`.fiber/` 约定一致应用到树结构：system-wide 文档进 `.fiber/`、per-context 文档跟代码走。
+distill 对 SKILL.md 里 ASCII 目录树采用「解析树 → 按前缀规则重排子树归属 → serialize」机制（`scripts/distill.py` 的 `_parse_tree` / `_rewrite_parsed_tree` / `_regroup_b` / `_serialize_forest`），替代原先对树也做裸 `str.replace`。机制保留节点名与相对结构（扁平/层级由上游决定，不改树形态），只重排归属。`.fiber/` 约定一致应用到树结构（规则 B）：system-wide 文档进根 `.fiber/`、per-context 文档进 `<ctx>/.fiber/`，命名空间对称。
 
 ## Context
 
@@ -18,7 +18,7 @@ distill 对 SKILL.md 里 ASCII 目录树采用「展平节点完整路径 → �
 
 ## Consequences
 
-- **扁平 `docs/adr/` 规范为层级**：rebuild 按路径分隔符建层，单行的 `docs/adr/`（如 setup `domain.md` 上游）在产物里规范成 `docs/` + `adr/` 两层。视觉形态变化但语义一致，且 `setup/domain.md` 与 `domain-modeling/SKILL.md` 两处树产物结构统一（双轨维护负担消除）。注释 `← …` 保留但不再多空格对齐（视觉 polish，后续可补）。
-- **`.fiber/` 作用域 A/B**：引擎参数化支持两模式——A（默认，根级系统文档进 `.fiber/`、per-context 跟代码，与 `SRC_FIX` 注释、setup 样板、matt 上游一致）与 B（per-context 也带 `.fiber/`）。默认 A；选 A 还是 B 是另一个 domain model 决策，不阻塞本机制。
-- **容错**：parse 失败（框图 `┌┐┘┤`、一 fence 多根、无节点行）保留上游原文，`--check` dry-run diff 暴露「需关注」信号而非静默产出错误结构。多根 fail-loud 不走 `GLOBAL`，让 diff 明确显示「这个树没被处理」。
-- **幂等**：树 fence 不经 `GLOBAL`（避免单行路径被半改），只走路径重写；规则 A 对已带 `.fiber/` 前缀的路径幂等。distill 流程靠 `copy_skills_flat` 每次重拷上游保证 orig 是上游原始。
+- **保留上游树形态**：机制只重排子树归属，不拆节点名 → 扁平 `docs/adr/`（setup `domain.md` 上游）保持扁平、层级 `docs/`+`adr/`（domain-modeling 上游）保持层级，"机械安全"。注释 `← …` 保留但不再多空格对齐（视觉 polish，后续可补）。
+- **`.fiber/` 作用域选 B（决策）**：引擎参数化支持两模式——A（根级系统文档进 `.fiber/`、per-context 跟代码，与 matt 上游 / setup 样板一致）与 B（per-context 也带 `.fiber/`，即 `<ctx>/.fiber/`）。**默认 B**：命名空间对称（根 `.fiber/` + 各 context `.fiber/`），系统文档不论层级都进 `.fiber/`，符合「每个 context 各自一份 .fiber/」的直觉。代价：偏离 matt 上游（setup 样板原是 A），故 `SETUP_REPLACEMENTS` 措辞 + 树重写统一为 B；正文 `_global_transform` 不再调 `SRC_FIX` 还原（B 保留 GLOBAL 给 per-context 加的 `.fiber/`）。A 保留为引擎内部选项（`_regroup_a`），不暴露 CLI flag。
+- **容错**：parse 失败（框图 `┌┐┘┤┬┴┼`、一 fence 多根、无节点行）保留上游原文，`--check` dry-run diff 暴露「需关注」信号而非静默产出错误结构。多根 fail-loud 不走 `GLOBAL`，让 diff 明确显示「这个树没被处理」。
+- **幂等**：树 fence 不经 `GLOBAL`（避免单行路径被半改），只走结构重排；规则 B 对已在 `.fiber/` 下的系统子树幂等（不重复建）。distill 流程靠 `copy_skills_flat` 每次重拷上游保证 orig 是上游原始。

@@ -23,7 +23,7 @@ Look at the current repo to understand its starting state. Read whatever exists;
 - `git remote -v` and `.git/config` — is this a GitHub repo? Which one?
 - `AGENTS.md` and `CLAUDE.md` at the repo root — does either exist? Is there already an `## Agent skills` section in either?
 - `.fiber/CONTEXT.md` and `.fiber/CONTEXT-MAP.md`
-- `.fiber/docs/adr/` and any `src/*/docs/adr/` directories
+- `.fiber/docs/adr/` and any `src/*/.fiber/docs/adr/` directories
 - `.fiber/docs/agents/` — does this skill's prior output already exist?
 - `.fiber/.scratch/` — sign that a local-markdown issue tracker convention is already in use
 - Is the `triage` skill installed? (a `triage` skill folder alongside this one, or `triage` in your available skills.) This decides whether Section B runs at all.

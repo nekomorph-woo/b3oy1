@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """蒸馏 mattpocock/skills 的 22 个核心 skill 到 plugins/fiber/skills/。
 
-策略：config 驱动 + 全局路径前缀替换。
-- GLOBAL：对所有非-setup skill 的 .md，把 matt 路径前缀统一加 .fiber/
-  （docs/agents/ .scratch/ .out-of-scope/ docs/adr/ CONTEXT.md CONTEXT-MAP.md）
-- SETUP：setup-matt-pocock-skills 单独精确处理（tracker 默认→local、domain file-structure
-  块重排、multi-context src/ 保护），因为它生成 config，路径是它的产物。
+策略：config 驱动 + 路径前缀替换 + ASCII 目录树路径重写（规则 B：命名空间对称，per-context
+也带 .fiber/）。
+- GLOBAL：对所有非-setup skill 的 .md，把 matt 路径前缀统一加 .fiber/（含 src/<ctx>/ 下
+  per-context）；ASCII 目录树走路径重写（系统文档进 .fiber/、per-context 进 <ctx>/.fiber/）
+- SETUP：setup-matt-pocock-skills 单独精确处理（tracker 默认→local、domain 措辞），树走
+  同一套路径重写（双轨统一）
 - 文件名全保留；skill 灵魂不动；幂等可复跑。
 
 跑法：python3 scripts/distill.py
@@ -51,11 +52,11 @@ GLOBAL_REPLACEMENTS = [
     (".out-of-scope/", ".fiber/.out-of-scope/"),
 ]
 
-# 后处理修正：全局替换会误伤 src/<context>/ 下的 per-context 文档（multi-context 时
-# per-context CONTEXT.md/docs/adr 跟代码走，不加 .fiber/）。还原它们。
+# 后处理修正（仅规则 A 用）：GLOBAL 给 src/<context>/ 下的 per-context 文档加了 .fiber/，
+# 规则 A 需还原（per-context 跟代码走）；规则 B（默认）保留（per-context 也带 .fiber/）。
 SRC_FIX = re.compile(r"(src/[\w-]+)/\.fiber/(CONTEXT(?:-MAP)?\.md|docs/adr/)")
 
-# setup skill 的精确替换（语义 + file-structure 块 + multi-context src/ 保护）。
+# setup skill 的精确替换（语义措辞 + file-structure 块）。
 SETUP_REPLACEMENTS = {
     "SKILL.md": [
         ("docs/agents/", ".fiber/docs/agents/"),
@@ -70,7 +71,7 @@ SETUP_REPLACEMENTS = {
         ("`CONTEXT.md` and `CONTEXT-MAP.md` at the repo root",
          "`.fiber/CONTEXT.md` and `.fiber/CONTEXT-MAP.md`"),
         ("`docs/adr/` and any `src/*/docs/adr/` directories",
-         "`.fiber/docs/adr/` and any `src/*/docs/adr/` directories"),
+         "`.fiber/docs/adr/` and any `src/*/.fiber/docs/adr/` directories"),
         ("`.scratch/` — sign that a local-markdown issue tracker",
          "`.fiber/.scratch/` — sign that a local-markdown issue tracker"),
         ("write a markdown file under `.scratch/`",
@@ -322,10 +323,12 @@ def copy_skills_flat(skills):
 # 漏改；multi-context 时 GLOBAL 还误伤 src/<ctx>/ 下的 per-context 文档，SRC_FIX 想还原
 # 同样跨行失灵。双向错误集中在 domain-modeling/SKILL.md 两棵树。
 #
-# 机制（/prototype 验证）：把树展平成节点完整路径 → 对路径应用窄前缀重写规则 →
-# 按新路径重建树 → serialize。拓扑重排（src/ 提升为顶层）是路径重写的副产品。per-context
-# 与根级同名文档（CONTEXT.md）在完整路径上可区分，跨行也不再失配。parse 失败（框图、多根、
-# 无节点）保留原文，--check diff 暴露「需关注」信号（延续 distill.py:565-566 容错哲学）。
+# 机制（/prototype 验证 + 结构保留）：解析树 → 按前缀规则重排根级子树归属（系统文档进
+# .fiber/、src/ 等留顶层）→ serialize。保留每个节点名与相对结构（扁平 docs/adr/ 单节点 vs
+# 层级 docs/+adr/ 由上游决定，机制不改树形态，只移路径前缀——「机械安全」）。拓扑重排（src/
+# 提升为顶层）是归属重排的副产品。per-context 与根级同名文档（CONTEXT.md）在完整路径第一段
+# 可区分，跨行不再失配。parse 失败（框图、多根、无节点）保留原文，--check diff 暴露
+# 「需关注」信号（延续 distill.py:565-566 容错哲学）。
 
 # 节点行：前导（|│ 空格）+ 分支（├└，ASCII fallback +）+ 连接（──/--，2+）+ 空格 + 名字[ ← 注释]
 _TREE_NODE = re.compile(r'^([|│ ]*)([├└+])([─-]{2,}) (.+?)\s*$')
@@ -390,97 +393,89 @@ def _parse_tree(body_lines):
     return (root_name, children)
 
 
-def _flatten_tree(root_name, children):
-    """展平成 [(full_path, is_dir, comment)]，DFS 序（保留原树顺序，供 rebuild 保序）。
+def _is_system(name):
+    """节点是否系统文档：完整路径第一段在 _SYSTEM_NAMES（per-context 靠此区分）。"""
+    return name.lstrip('/').split('/')[0] in _SYSTEM_NAMES
 
-    匿名根 `/` 不产出路径条目（其子直接为顶层）；命名根（如 .out-of-scope/）本身作为
-    一条路径，使规则 A 把整棵命名树移进 .fiber/。
+
+def _rewrite_parsed_tree(root_name, children, rule='b'):
+    """重排子树归属（保留节点名与相对结构，不改树形态——「机械安全」）。
+
+    rule A：只重排根级归属（系统文档进根 .fiber/、src/ 等留顶层；src/ 下 per-context 不动）。
+    rule B（默认）：每个含系统文档子的层级都建各自 .fiber/（根 .fiber/ + src/<ctx>/.fiber/），
+    命名空间对称——per-context 也带 .fiber/。拓扑重排（src/ 提升为顶层）是归属重排的副产品。
+    命名根（如 .out-of-scope/）若为系统名则整棵进根 .fiber/。
     """
-    paths = []
+    if rule == 'a':
+        return _regroup_a(root_name, children)
+    return _regroup_b(root_name, children)
+
+
+def _regroup_a(root_name, children):
+    """规则 A：根级系统子进 .fiber/，代码子留顶层（不递归，per-context 跟代码走）。"""
     if root_name == '/':
-        base = ''
-    else:
-        base = root_name.rstrip('/')
-        paths.append((base + '/', True, None))
-    def dfs(prefix, nodes):
-        for node in nodes:
-            full = prefix + node['name']
-            paths.append((full, node['is_dir'], node['comment']))
-            if node['children']:
-                dfs(full if full.endswith('/') else full + '/', node['children'])
-    dfs(base + '/' if base else '', children)
-    return paths
+        fiber_kids = [n for n in children if _is_system(n['name'])]
+        top_kids = [n for n in children if not _is_system(n['name'])]
+        forest = []
+        if fiber_kids:
+            forest.append({'name': '.fiber/', 'is_dir': True, 'comment': None, 'children': fiber_kids})
+        forest.extend(top_kids)
+        return forest
+    named = {'name': root_name, 'is_dir': True, 'comment': None, 'children': children}
+    return [{'name': '.fiber/', 'is_dir': True, 'comment': None, 'children': [named]}] if _is_system(root_name) else [named]
 
 
-def _rewrite_a(full):
-    """规则 A（默认）：根级系统文档进 .fiber/，src/ 下 per-context 不动。
-
-    per-context 靠完整路径第一段区分：src/ordering/CONTEXT.md 第一段是 src，不在
-    _SYSTEM_NAMES，自动不动——这是「路径重写」相对「裸字符串替换」的根本优势。
-    """
-    first = full.lstrip('/').split('/')[0]
-    if first in _SYSTEM_NAMES:
-        return '.fiber/' + full.lstrip('/')
-    return full.lstrip('/')
-
-
-def _rewrite_b(full):
-    """规则 B（占位）：per-context 的系统文档也带 .fiber（放各 context 自己的 .fiber/ 下）。
-
-    A/B 的最终决策不阻塞本机制（issue #21 Out of Scope）；引擎参数化支持两模式，默认 A。
-    """
+def _regroup_b_children(children):
+    """规则 B 子重组：系统子整棵挪到本层 .fiber/，代码子递归（nested context 各自 .fiber/）。"""
+    system_kids, code_kids = [], []
+    for child in children:
+        if _is_system(child['name']):
+            system_kids.append(child)
+        else:
+            if child['children']:
+                child['children'] = _regroup_b_children(child['children'])
+            code_kids.append(child)
     out = []
-    for seg in full.split('/'):
-        if seg in _SYSTEM_NAMES:
-            out.append('.fiber')
-        out.append(seg)
-    return '/'.join(out).lstrip('/')
+    if system_kids:
+        out.append({'name': '.fiber/', 'is_dir': True, 'comment': None, 'children': system_kids})
+    out.extend(code_kids)
+    return out
 
 
-def _rebuild_tree(paths):
-    """按重写后路径重建森林（trie，子节点按首次出现顺序保持）。返回顶层 dict。"""
-    forest = {}
-    for (full, is_dir, comment) in paths:
-        segs = [s for s in full.split('/') if s]
-        if not segs:
-            continue
-        cur_children = forest
-        node = None
-        for seg in segs:
-            if seg not in cur_children:
-                cur_children[seg] = {'children': {}, 'is_dir': False, 'comment': None}
-            node = cur_children[seg]
-            cur_children = node['children']
-        node['is_dir'] = is_dir  # 最后一段：原始节点是否目录（中间段由有 children 隐含目录）
-        if comment:
-            node['comment'] = comment
-    return forest
+def _regroup_b(root_name, children):
+    """规则 B：每层 context 各自 .fiber/（根 .fiber/ + src/<ctx>/.fiber/）。"""
+    if root_name == '/':
+        return _regroup_b_children(children)
+    named = {'name': root_name, 'is_dir': True, 'comment': None, 'children': _regroup_b_children(children)}
+    return [{'name': '.fiber/', 'is_dir': True, 'comment': None, 'children': [named]}] if _is_system(root_name) else [named]
+
+
+def _node_display(node):
+    """节点显示名：去尾 / 后按目录属性决定加 /（兼容扁平名如 docs/adr/）。"""
+    base = node['name'].rstrip('/')
+    return base + ('/' if (node['children'] or node['is_dir']) else '')
 
 
 def _serialize_forest(forest):
-    """森林 → 行列表（box-drawing，多根顶格紧邻，注释单空格不对齐）。"""
+    """森林 → 行列表（box-drawing，多根顶格紧邻，注释单空格不对齐）。forest = 节点 list。"""
     lines = []
-    for name in forest:
-        node = forest[name]
-        display = name + ('/' if (node['children'] or node['is_dir']) else '')
-        lines.append(display + (f' ← {node["comment"]}' if node['comment'] else ''))
-        _serialize_children(node['children'], '', lines)
+    for node in forest:
+        lines.append(_node_display(node) + (f' ← {node["comment"]}' if node['comment'] else ''))
+        if node['children']:
+            _serialize_children(node['children'], '', lines)
     return lines
 
 
 def _serialize_children(children, prefix, lines):
-    names = list(children)
-    for i, name in enumerate(names):
-        node = children[name]
-        last = i == len(names) - 1
-        display = name + ('/' if (node['children'] or node['is_dir']) else '')
+    for i, node in enumerate(children):
+        last = i == len(children) - 1
         connector = '└── ' if last else '├── '
-        lines.append(prefix + connector + display + (f' ← {node["comment"]}' if node['comment'] else ''))
+        lines.append(prefix + connector + _node_display(node) + (f' ← {node["comment"]}' if node['comment'] else ''))
         if node['children']:
             _serialize_children(node['children'], prefix + ('    ' if last else '│   '), lines)
 
 
-def _rewrite_tree_body(body, rule='a'):
+def _rewrite_tree_body(body, rule='b'):
     """对单个 fence body（不含围栏）尝试树重写。
 
     返回 (kind, new_body):
@@ -494,9 +489,7 @@ def _rewrite_tree_body(body, rule='a'):
     if parsed is None:
         return ('passthrough', body)
     root_name, children = parsed
-    fn = _rewrite_a if rule == 'a' else _rewrite_b
-    paths = [(fn(p), d, c) for (p, d, c) in _flatten_tree(root_name, children)]
-    forest = _rebuild_tree(paths)
+    forest = _rewrite_parsed_tree(root_name, children, rule=rule)
     return ('tree', '\n'.join(_serialize_forest(forest)))
 
 
@@ -531,10 +524,15 @@ def _apply_tree_rewrite(text, base_transform=None):
 
 
 def _global_transform(text):
-    """GLOBAL 路径前缀替换 + SRC_FIX 还原（原 transform_fiber_md 的字面量逻辑，纯函数）。"""
+    """GLOBAL 路径前缀替换（纯函数）。
+
+    规则 B（默认）：GLOBAL 给所有 CONTEXT.md / docs/adr/ 等加 .fiber/ 前缀，含 src/<ctx>/ 下
+    的 per-context（src/<ctx>/.fiber/CONTEXT.md）——命名空间对称，符合 B。规则 A 下需在此追加
+    `SRC_FIX.sub(r'\\1/\\2', text)` 还原 per-context（A 不带 .fiber/）。
+    """
     for old, new in GLOBAL_REPLACEMENTS:
         text = text.replace(old, new)
-    return SRC_FIX.sub(r'\1/\2', text)
+    return text
 
 
 def transform_fiber_md(text):
@@ -625,11 +623,12 @@ def write_meta(commit, version, count, skills_by_bucket, extra_skills):
         "skills_hash_by_bucket": skills_by_bucket,
         "extra_skills": extra_skills,
         "distilled_skills": count,
-        "distill_strategy": "config-driven + global path-prefix: all non-setup skills "
-                            "path-replaced to .fiber/ (docs/agents .scratch .out-of-scope "
-                            "docs/adr CONTEXT.md); setup separately fine-tuned (tracker "
-                            "default→local, domain file-structure, multi-context src/ kept); "
-                            "filenames preserved; included buckets flattened",
+        "distill_strategy": "config-driven + path-prefix + ASCII tree path-rewrite (rule B: "
+                            "per-context also under .fiber/); all non-setup skills path-replaced "
+                            "to .fiber/ (docs/agents .scratch .out-of-scope docs/adr CONTEXT.md; "
+                            "src/<ctx>/ per-context → src/<ctx>/.fiber/); ASCII trees regrouped "
+                            "(system docs → .fiber/, per-context → <ctx>/.fiber/); setup separately "
+                            "fine-tuned (tracker default→local, domain wording); filenames preserved",
         "namespace": ".fiber/",
         "update_note": "Only included_buckets distilled (deprecated/in-progress/misc/personal "
                        "intentionally skipped). git diff <commit>..HEAD -- skills/{engineering,productivity}; rerun distill.py",

@@ -75,13 +75,13 @@ def test_multi_context_tree():
         "    └── adr/ ← system-wide decisions\n"
         "src/\n"
         "├── ordering/\n"
-        "│   ├── CONTEXT.md\n"
-        "│   └── docs/\n"
-        "│       └── adr/ ← context-specific decisions\n"
+        "│   └── .fiber/\n"
+        "│       ├── CONTEXT.md\n"
+        "│       └── docs/adr/ ← context-specific decisions\n"
         "└── billing/\n"
-        "    ├── CONTEXT.md\n"
-        "    └── docs/\n"
-        "        └── adr/"
+        "    └── .fiber/\n"
+        "        ├── CONTEXT.md\n"
+        "        └── docs/adr/"
     )
     assert transform_fiber_md(inp) == expected
 
@@ -200,10 +200,10 @@ def test_prose_global_unchanged():
     assert transform_fiber_md(inp) == expected
 
 
-def test_src_fix_still_restores_per_context_in_prose():
-    """正文连续路径：根级 CONTEXT.md 进 .fiber/，src/<ctx>/ 下 per-context 由 SRC_FIX 还原。"""
+def test_per_context_prose_gets_fiber_prefix():
+    """正文连续路径（规则 B）：根级与 per-context 的 CONTEXT.md 都带 .fiber/（命名空间对称）。"""
     inp = "root CONTEXT.md and src/ordering/CONTEXT.md coexist"
-    expected = "root .fiber/CONTEXT.md and src/ordering/CONTEXT.md coexist"
+    expected = "root .fiber/CONTEXT.md and src/ordering/.fiber/CONTEXT.md coexist"
     assert transform_fiber_md(inp) == expected
 
 
@@ -248,10 +248,10 @@ def test_apply_writes_same_as_transform(tmp_path, monkeypatch):
 # ============================ setup skill(双轨统一) ============================
 
 def test_setup_domain_single_context_tree():
-    """setup domain.md 单 context 树(扁平 docs/adr/)走新机制 → 与 domain-modeling 产物一致。
+    """setup domain.md 单 context 树(扁平 docs/adr/)走新机制 → 保留扁平,与手工样板一致。
 
-    删 SETUP_REPLACEMENTS 手工树字面量后,domain.md 树改走树重写;扁平 docs/adr/
-    被 rebuild 规范为层级 docs/+adr/(user story 3 双轨统一 / 13 视觉一致)。
+    删 SETUP_REPLACEMENTS 手工树字面量后,domain.md 树改走树重写;机制保留上游扁平形态
+    (扁平 docs/adr/ 不被拆成层级),产物与原 SETUP_REPLACEMENTS 样板一致(user story 2/3)。
     """
     inp = fence(
         "/\n"
@@ -264,17 +264,16 @@ def test_setup_domain_single_context_tree():
     expected = fence(
         ".fiber/\n"
         "├── CONTEXT.md\n"
-        "└── docs/\n"
-        "    └── adr/\n"
-        "        ├── 0001-event-sourced-orders.md\n"
-        "        └── 0002-postgres-for-write-model.md\n"
+        "└── docs/adr/\n"
+        "    ├── 0001-event-sourced-orders.md\n"
+        "    └── 0002-postgres-for-write-model.md\n"
         "src/"
     )
     assert transform_setup_text("domain.md", inp) == expected
 
 
 def test_setup_domain_multi_context_tree():
-    """setup domain.md multi-context 树走新机制,产物与 domain-modeling 一致。"""
+    """setup domain.md multi-context 树走新机制,system-wide 与 per-context 都保留扁平。"""
     inp = fence(
         "/\n"
         "├── CONTEXT-MAP.md\n"
@@ -290,17 +289,16 @@ def test_setup_domain_multi_context_tree():
     expected = fence(
         ".fiber/\n"
         "├── CONTEXT-MAP.md\n"
-        "└── docs/\n"
-        "    └── adr/ ← system-wide decisions\n"
+        "└── docs/adr/ ← system-wide decisions\n"
         "src/\n"
         "├── ordering/\n"
-        "│   ├── CONTEXT.md\n"
-        "│   └── docs/\n"
-        "│       └── adr/ ← context-specific decisions\n"
+        "│   └── .fiber/\n"
+        "│       ├── CONTEXT.md\n"
+        "│       └── docs/adr/ ← context-specific decisions\n"
         "└── billing/\n"
-        "    ├── CONTEXT.md\n"
-        "    └── docs/\n"
-        "        └── adr/"
+        "    └── .fiber/\n"
+        "        ├── CONTEXT.md\n"
+        "        └── docs/adr/"
     )
     assert transform_setup_text("domain.md", inp) == expected
 
@@ -325,25 +323,23 @@ def test_setup_skill_md_no_tree_passthrough():
 
 @needs_matt
 def test_upstream_domain_modeling_regression():
-    """上游 domain-modeling/SKILL.md 经 transform 后：树正确（修复双向错误）。"""
+    """上游 domain-modeling/SKILL.md 经 transform 后：树按规则 B 正确重写。"""
     t = (MATT / "skills/engineering/domain-modeling/SKILL.md").read_text()
     out = transform_fiber_md(t)
-    # system-wide 进 .fiber（漏改修复）
+    # system-wide 进根 .fiber/（漏改修复）
     assert ".fiber/\n├── CONTEXT.md" in out or ".fiber/\n├── CONTEXT-MAP.md" in out
-    # per-context 不带 .fiber（误改修复）
-    assert "ordering/.fiber/" not in out
-    assert "billing/.fiber/" not in out
-    # per-context CONTEXT.md 原样跟在 ordering/ 下
-    assert "ordering/\n│   ├── CONTEXT.md" in out
+    # per-context 进各 context 的 .fiber/（规则 B：命名空间对称）
+    assert "ordering/\n│   └── .fiber/" in out
+    assert "billing/\n    └── .fiber/" in out
 
 
 @needs_matt
 def test_upstream_setup_domain_regression():
-    """上游 setup domain.md 经 transform 后：树正确（与新机制产物一致）。"""
+    """上游 setup domain.md 经 transform 后：树按规则 B 正确重写（与新机制产物一致）。"""
     t = (MATT / "skills/engineering/setup-matt-pocock-skills/domain.md").read_text()
     out = transform_setup_text("domain.md", t)
     assert ".fiber/\n├── CONTEXT.md" in out
-    assert "ordering/.fiber/" not in out
+    assert "ordering/\n│   └── .fiber/" in out  # per-context 进各 context .fiber/（B）
 
 
 @needs_matt

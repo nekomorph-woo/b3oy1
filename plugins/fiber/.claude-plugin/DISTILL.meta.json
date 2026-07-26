@@ -48,7 +48,7 @@
     }
   ],
   "distilled_skills": 22,
-  "distill_strategy": "config-driven + global path-prefix: all non-setup skills path-replaced to .fiber/ (docs/agents .scratch .out-of-scope docs/adr CONTEXT.md); setup separately fine-tuned (tracker default→local, domain file-structure, multi-context src/ kept); filenames preserved; included buckets flattened",
+  "distill_strategy": "config-driven + path-prefix + ASCII tree path-rewrite (rule B: per-context also under .fiber/); all non-setup skills path-replaced to .fiber/ (docs/agents .scratch .out-of-scope docs/adr CONTEXT.md; src/<ctx>/ per-context → src/<ctx>/.fiber/); ASCII trees regrouped (system docs → .fiber/, per-context → <ctx>/.fiber/); setup separately fine-tuned (tracker default→local, domain wording); filenames preserved",
   "namespace": ".fiber/",
   "update_note": "Only included_buckets distilled (deprecated/in-progress/misc/personal intentionally skipped). git diff <commit>..HEAD -- skills/{engineering,productivity}; rerun distill.py"
 }

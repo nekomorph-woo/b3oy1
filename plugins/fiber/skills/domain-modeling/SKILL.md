@@ -30,13 +30,13 @@ If a `.fiber/CONTEXT-MAP.md` exists at the root, the repo has multiple contexts.
     └── adr/ ← system-wide decisions
 src/
 ├── ordering/
-│   ├── CONTEXT.md
-│   └── docs/
-│       └── adr/ ← context-specific decisions
+│   └── .fiber/
+│       ├── CONTEXT.md
+│       └── docs/adr/ ← context-specific decisions
 └── billing/
-    ├── CONTEXT.md
-    └── docs/
-        └── adr/
+    └── .fiber/
+        ├── CONTEXT.md
+        └── docs/adr/
 ```
 
 Create files lazily — only when you have something to write. If no `.fiber/CONTEXT.md` exists, create one when the first term is resolved. If no `.fiber/docs/adr/` exists, create it when the first ADR is needed.
