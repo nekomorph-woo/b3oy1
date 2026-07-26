@@ -1,5 +1,5 @@
 {
   "name": "spin",
-  "description": "Support tooling for the fiber workflow — project setup, version management, rendering, and custom helpers.",
+  "description": "Standalone utilities and conveniences for Claude Code — the everyday skills the fiber workflow doesn't cover, installable alongside it.",
   "version": "0.1.0"
 }
