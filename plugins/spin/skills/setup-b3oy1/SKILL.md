@@ -53,7 +53,7 @@ Then copy the four distributed-rule templates from this skill directory into the
 
 - **[tracker-index-edit.md](./tracker-index-edit.md)** — the map / tracker-index body-safety rule. A `gh issue edit --body-file` on a stale snapshot destroys concurrent edits; this makes re-fetch-before-edit and surgical-edits-over-overwrite a distributed hard rule.
 - **[wayfinder-no-encroachment.md](./wayfinder-no-encroachment.md)** — the "plan, don't do" seam: frontier / grilling / hand-off tickets hand off to the implementation workstream rather than writing destination code. A soft, attention-based constraint (independent file, repeated with the wayfinder skill body); a PreToolUse hook is the upgrade path if it fails.
-- **[throwaway-worktree-convention.md](./throwaway-worktree-convention.md)** — the planning pair to no-encroachment: the `task` / `prototype` / `research` tickets that no-encroachment exempts have their throwaway code live in a git worktree, never main.
+- **[throwaway-worktree-convention.md](./throwaway-worktree-convention.md)** — the planning pair to no-encroachment: the `task` / `prototype` / `research` tickets that no-encroachment exempts have their throwaway code live in a git worktree, forked from the current branch, never merged into main.
 - **[b3oy1-conversation-style.md](./b3oy1-conversation-style.md)** — the house style. Carries a `{{USER_SPECIFIED_LANGUAGE}}` placeholder (filled in step 3 from the user's answer); the rest: change summaries lead with a why-first verb (Added / Changed / Fixed / Removed); why-first, no-ceremony dialogue.
 
 All four names are b3oy1-namespaced, so copy unconditionally — they will not collide with a project's own rules.
