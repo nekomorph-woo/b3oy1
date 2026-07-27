@@ -315,7 +315,7 @@ def test_setup_semantic_replacements_kept():
 def test_setup_skill_md_no_tree_passthrough():
     """setup SKILL.md 的语义措辞替换保留;无树则树重写无副作用。"""
     inp = "one `CONTEXT.md` + `docs/adr/` at the repo root"
-    expected = "one `CONTEXT.md` + `docs/adr/` at `.fiber/`"
+    expected = "one `.fiber/CONTEXT.md` + `.fiber/docs/adr/`"
     assert transform_setup_text("SKILL.md", inp) == expected
 
 

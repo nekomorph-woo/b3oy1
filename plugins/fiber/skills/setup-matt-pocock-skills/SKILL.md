@@ -10,7 +10,7 @@ Scaffold the per-repo configuration that the engineering skills assume:
 
 - **Issue tracker** — where issues live (local markdown, GitHub, or GitLab — follow the user's intent, all first-class)
 - **Triage labels** — the strings used for the five canonical triage roles
-- **Domain docs** — where `CONTEXT.md` and ADRs live, and the consumer rules for reading them
+- **Domain docs** — where `.fiber/CONTEXT.md` and ADRs live, and the consumer rules for reading them
 
 This is a prompt-driven skill, not a deterministic script. Explore, present what you found, confirm with the user, then write.
 
@@ -56,9 +56,9 @@ If it is installed, ask exactly one question:
 
 The defaults are the five canonical roles, each label string equal to its name: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. On **yes**, write them as-is. Only if the user says no — usually because their tracker already uses other names (e.g. `bug:triage` for `needs-triage`) — collect the overrides so `triage` applies existing labels instead of creating duplicates.
 
-**Section C — Domain docs.** Default to **single-context** — one `CONTEXT.md` + `docs/adr/` at `.fiber/`. This fits almost every repo; write it without asking.
+**Section C — Domain docs.** Default to **single-context** — one `.fiber/CONTEXT.md` + `.fiber/docs/adr/`. This fits almost every repo; write it without asking.
 
-Offer **multi-context** — a `.fiber/CONTEXT-MAP.md` pointing to per-context `CONTEXT.md` files — only when exploration found monorepo signals. Then confirm which layout they want.
+Offer **multi-context** — a `.fiber/CONTEXT-MAP.md` pointing to per-context `.fiber/CONTEXT.md` files — only when exploration found monorepo signals. Then confirm which layout they want.
 
 ### 3. Confirm and edit
 
