@@ -47,16 +47,18 @@ Completion: `.claude/rules/agent-skills.md` holds the full index; `CLAUDE.md` / 
 
 ### 3. Install the b3oy1 rules
 
-Copy the four distributed-rule templates from this skill directory into the user project's `.claude/rules/`:
+**Fill the conversation-style language placeholder first.** `b3oy1-conversation-style.md` carries a `{{USER_SPECIFIED_LANGUAGE}}` token. Ask the user which language the installed rule should use — plain text input, no multiple-choice options (e.g. `简体中文`, `English`, `日本語`). Substitute their answer verbatim for the token before copying the file to `.claude/rules/`. The other three templates have no placeholder.
+
+Then copy the four distributed-rule templates from this skill directory into the user project's `.claude/rules/`:
 
 - **[tracker-index-edit.md](./tracker-index-edit.md)** — the map / tracker-index body-safety rule. A `gh issue edit --body-file` on a stale snapshot destroys concurrent edits; this makes re-fetch-before-edit and surgical-edits-over-overwrite a distributed hard rule.
 - **[wayfinder-no-encroachment.md](./wayfinder-no-encroachment.md)** — the "plan, don't do" seam: frontier / grilling / hand-off tickets hand off to the implementation workstream rather than writing destination code. A soft, attention-based constraint (independent file, repeated with the wayfinder skill body); a PreToolUse hook is the upgrade path if it fails.
 - **[throwaway-worktree-convention.md](./throwaway-worktree-convention.md)** — the planning pair to no-encroachment: the `task` / `prototype` / `research` tickets that no-encroachment exempts have their throwaway code live in a git worktree, never main.
-- **[b3oy1-conversation-style.md](./b3oy1-conversation-style.md)** — the house style: language follows the user; change summaries lead with a why-first verb (Added / Changed / Fixed / Removed); why-first, no-ceremony dialogue.
+- **[b3oy1-conversation-style.md](./b3oy1-conversation-style.md)** — the house style. Carries a `{{USER_SPECIFIED_LANGUAGE}}` placeholder (filled in step 3 from the user's answer); the rest: change summaries lead with a why-first verb (Added / Changed / Fixed / Removed); why-first, no-ceremony dialogue.
 
 All four names are b3oy1-namespaced, so copy unconditionally — they will not collide with a project's own rules.
 
-Completion: `.claude/rules/` carries all four, each the bundled template verbatim.
+Completion: `.claude/rules/` carries all four — three verbatim, `b3oy1-conversation-style.md` with `{{USER_SPECIFIED_LANGUAGE}}` filled from the user's answer.
 
 ### 4. Inject sub-issue discipline into the issue tracker doc
 
