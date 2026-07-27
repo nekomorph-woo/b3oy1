@@ -1,7 +1,6 @@
 ---
 name: b3oy1-commit
-description: 为暂存的改动写一条规范 commit，改动触及 plugin 时自动升级版本。
-disable-model-invocation: true
+description: b3oy1 仓库的收尾提交器：一组确定的改动完成时主动调用，写规范 commit；触及 `plugins/fiber`、`plugins/spin` 时自动 bump 版本（委派 manage-version）。探索、实验、原型、中间态不触发；拿不准是否该收尾时先问。
 ---
 
 # Commit
