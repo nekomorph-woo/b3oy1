@@ -78,21 +78,34 @@ SETUP_REPLACEMENTS = {
          "write a markdown file under `.fiber/.scratch/`"),
         ("issues live as files under `.scratch/<feature>/`",
          "issues live as files under `.fiber/.scratch/<feature>/`"),
-        # domain root 措辞
+        # domain root 措辞（B 类：文件名前缀化，去掉冗余 "at .fiber/"——前缀自带位置）
         ("one `CONTEXT.md` + `docs/adr/` at the repo root",
-         "one `CONTEXT.md` + `docs/adr/` at `.fiber/`"),
+         "one `.fiber/CONTEXT.md` + `.fiber/docs/adr/`"),
         ("a root `CONTEXT-MAP.md` pointing to per-context",
          "a `.fiber/CONTEXT-MAP.md` pointing to per-context"),
+        # A 类：prose 里裸 CONTEXT.md 补 .fiber/ 前缀（与 GLOBAL 对非-setup skill 的结果对齐）
+        ("`CONTEXT.md` and ADRs live",
+         "`.fiber/CONTEXT.md` and ADRs live"),
+        ("per-context `CONTEXT.md` files",
+         "per-context `.fiber/CONTEXT.md` files"),
     ],
     "domain.md": [
+        # B 类：文件名前缀化，去掉冗余 "at .fiber/"（前缀自带位置）
         ("**`CONTEXT.md`** at the repo root, or",
-         "**`CONTEXT.md`** at `.fiber/`, or"),
+         "**`.fiber/CONTEXT.md`**, or"),
         ("**`CONTEXT-MAP.md`** at the repo root if it exists",
-         "**`CONTEXT-MAP.md`** at `.fiber/` if it exists"),
+         "**`.fiber/CONTEXT-MAP.md`** if it exists"),
         ("**`docs/adr/`** — read ADRs",
          "**`.fiber/docs/adr/`** — read ADRs"),
         ("presence of `CONTEXT-MAP.md` at the root",
          "presence of `.fiber/CONTEXT-MAP.md`"),
+        # A 类：prose 里裸路径补 .fiber/ 前缀
+        ("src/<context>/docs/adr/",
+         "src/<context>/.fiber/docs/adr/"),
+        ("defined in `CONTEXT.md`",
+         "defined in `.fiber/CONTEXT.md`"),
+        ("one `CONTEXT.md` per context",
+         "one `.fiber/CONTEXT.md` per context"),
         # file structure 块的 ASCII 目录树不再手工整段字面量替换——交由
         # _apply_tree_rewrite 的路径重写统一处理（见 transform_setup_text）。
         # 上游树结构更新后自动正确，无需在此维护 old/new 字面量（issue #21 双轨统一）。
@@ -446,6 +459,10 @@ def _regroup_b(root_name, children):
     """规则 B：每层 context 各自 .fiber/（根 .fiber/ + src/<ctx>/.fiber/）。"""
     if root_name == '/':
         return _regroup_b_children(children)
+    # 幂等保护：root 已是 .fiber/ 命名空间（仅「对产物再跑」才命中，上游不写 .fiber/），
+    # children 已就位不再 regroup，否则 system child（如 .out-of-scope/）会被再套一层 .fiber/。
+    if root_name.rstrip('/').split('/')[0] == '.fiber':
+        return [{'name': root_name, 'is_dir': True, 'comment': None, 'children': children}]
     named = {'name': root_name, 'is_dir': True, 'comment': None, 'children': _regroup_b_children(children)}
     return [{'name': '.fiber/', 'is_dir': True, 'comment': None, 'children': [named]}] if _is_system(root_name) else [named]
 

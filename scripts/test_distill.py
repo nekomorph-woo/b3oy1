@@ -104,6 +104,23 @@ def test_out_of_scope_tree():
     assert transform_fiber_md(inp) == expected
 
 
+def test_out_of_scope_tree_idempotent():
+    """.out-of-scope/ 命名根树重写后是单根 .fiber/，再跑不再 double-prefix。
+
+    回归 triage/OUT-OF-SCOPE.md：首次 .out-of-scope/ → .fiber/.out-of-scope/ 正确，
+    但对产物（.fiber/ root）再跑 _regroup_b 会把 .out-of-scope/ 又套一层 .fiber/。
+    _regroup_b 对「root 已是 .fiber/ 命名空间」短路 children regroup 修复。
+    """
+    inp = fence(
+        ".out-of-scope/\n"
+        "├── dark-mode.md\n"
+        "└── plugin-system.md"
+    )
+    once = transform_fiber_md(inp)
+    assert transform_fiber_md(once) == once
+    assert ".fiber/.fiber/" not in once
+
+
 def test_deep_nesting_preserved():
     """5 层深嵌套:非系统名分支保真,树重写只移系统名。"""
     inp = fence(
@@ -315,7 +332,7 @@ def test_setup_semantic_replacements_kept():
 def test_setup_skill_md_no_tree_passthrough():
     """setup SKILL.md 的语义措辞替换保留;无树则树重写无副作用。"""
     inp = "one `CONTEXT.md` + `docs/adr/` at the repo root"
-    expected = "one `CONTEXT.md` + `docs/adr/` at `.fiber/`"
+    expected = "one `.fiber/CONTEXT.md` + `.fiber/docs/adr/`"
     assert transform_setup_text("SKILL.md", inp) == expected
 
 
