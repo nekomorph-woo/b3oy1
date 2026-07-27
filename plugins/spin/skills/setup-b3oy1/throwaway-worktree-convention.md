@@ -13,7 +13,7 @@ Destination code (`implement`, `tdd`, the product itself) is **not** throwaway.
 
 ## The convention
 
-1. **Throwaway code goes in a git worktree** on its own branch, off main. `git worktree add` is git's native multi-working-directory mechanism — it lets several throwaways exist in parallel without checkout-juggling. This is a git-layer convention, independent of any agent runtime.
+1. **Throwaway code goes in a git worktree** on its own branch, forked from the current local branch — not necessarily main. If the current branch has uncommitted or unpushed work, commit and push it first, so the new branch forks from a clean, fixed point. `git worktree add` is git's native multi-working-directory mechanism — it lets several throwaways exist in parallel without checkout-juggling. This is a git-layer convention, independent of any agent runtime.
 
 2. **Never merge a throwaway branch into the main branch.** No PR from a throwaway branch to main. The main branch keeps only validated decisions and destination code.
 
