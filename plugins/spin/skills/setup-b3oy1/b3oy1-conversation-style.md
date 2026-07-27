@@ -4,9 +4,7 @@
 
 ## Language
 
-Match the user's language. Whatever language the user is writing in — and whatever language the repo's existing documentation and codebase use — reply in that same language for all dialogue, console output, script comments, commit messages, and doc prose.
-
-If the user's language is ambiguous, follow the language of the repo's existing documentation and codebase.
+Use {{USER_SPECIFIED_LANGUAGE}} for all dialogue, console output, script comments, commit messages, and doc prose.
 
 Keep the following in their original form — do not translate:
 
