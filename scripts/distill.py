@@ -459,6 +459,10 @@ def _regroup_b(root_name, children):
     """规则 B：每层 context 各自 .fiber/（根 .fiber/ + src/<ctx>/.fiber/）。"""
     if root_name == '/':
         return _regroup_b_children(children)
+    # 幂等保护：root 已是 .fiber/ 命名空间（仅「对产物再跑」才命中，上游不写 .fiber/），
+    # children 已就位不再 regroup，否则 system child（如 .out-of-scope/）会被再套一层 .fiber/。
+    if root_name.rstrip('/').split('/')[0] == '.fiber':
+        return [{'name': root_name, 'is_dir': True, 'comment': None, 'children': children}]
     named = {'name': root_name, 'is_dir': True, 'comment': None, 'children': _regroup_b_children(children)}
     return [{'name': '.fiber/', 'is_dir': True, 'comment': None, 'children': [named]}] if _is_system(root_name) else [named]
 
