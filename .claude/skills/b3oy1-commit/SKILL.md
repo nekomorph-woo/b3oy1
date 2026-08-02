@@ -1,11 +1,11 @@
 ---
 name: b3oy1-commit
-description: b3oy1 仓库的收尾提交器：一组确定的改动完成时主动调用，写规范 commit；触及 `plugins/fiber`、`plugins/spin` 时自动 bump 版本（委派 manage-version）。探索、实验、原型、中间态不触发；拿不准是否该收尾时先问。
+description: b3oy1 仓库的版本维护器：改动触及 `plugins/fiber`、`plugins/spin` 需要 bump 版本时由用户手动调用，写规范 commit 并同步版本（委派 manage-version）。普通改动不触发——AI 默认用 snap 提交。
 ---
 
 # Commit
 
-为暂存区写一条规范 commit。改动触及 plugin 时升级版本。用户提到 issue 才关联。
+版本维护器。仅为「触及 plugin 版本变更」的提交服务：bump 版本并写规范 commit。普通开发提交走 `/snap`（AI 默认调用）；本 skill 由**用户手动调用**，或 AI 在用户明确要求版本变更时调用。用户提到 issue 才关联。
 
 ## 步骤
 
@@ -26,11 +26,11 @@ description: b3oy1 仓库的收尾提交器：一组确定的改动完成时主�
 
 完成标准：一行 message 说清改了什么行为，而不是列文件。
 
-### 3. 触及 plugin 时升级版本
+### 3. 升级版本
 
 暂存 diff 包含 `plugins/fiber/**` 或 `plugins/spin/**` 时，升级该 plugin 版本：`feat` → minor，含 breaking → major，其余 → patch。委托 `/b3oy1-manage-version` 静默模式，同步 `plugins/<name>/.claude-plugin/plugin.json` 与 `.claude-plugin/marketplace.json` 的 plugins[] 条目，并 minor bump `metadata.version`。版本文件 `git add` 纳入本次提交。
 
-未触及 plugin 则静默跳过，不询问。
+暂存 diff **未触及 plugin** 时，这不是本 skill 服务的场景：不提交，提示改用 `/snap`。
 
 完成标准：每个被改的 plugin 在两个文件里版本一致；`metadata.version` 已 bump。
 
