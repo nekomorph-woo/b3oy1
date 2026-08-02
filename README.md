@@ -109,12 +109,18 @@ fiber 把决策视作**纤维**：每条决策都是一根细而韧的丝，多�
 ├── CONTEXT-MAP.md      # 多上下文时的索引（monorepo）
 ├── docs/adr/           # 架构决策记录
 ├── docs/agents/        # 给代理读的配置（tracker / labels / domain layout）
+├── worktrees.md        # worktree 路由表（ticket → 路径 → 分支）
+├── worktrees/          # 工作树家目录（throwaway 与 destination 分层）
 └── .scratch/           # 本地票据归宿（若选 local tracker）
 ```
 
-**与上游 matt 的关键差异**：matt 的 skill 会把文档散落在仓库根目录（`CONTEXT.md`、`docs/adr/`、`docs/agents/`、`.scratch/` 各占一处）。fiber 把这些**全部收敛到 `.fiber/` 一个目录下**——根目录保持干净，所有决策产物有唯一入口、可整体追溯、可一键忽略。
+**与上游 matt 的关键差异**：matt 的 skill 会把文档散落在仓库根目录（`CONTEXT.md`、`docs/adr/`、`docs/agents/`、`.scratch/` 各占一处）。
 
-issue tracker 的默认值不预设——`/setup-matt-pocock-skills` 跟随用户的设置意图：本地 markdown、GitHub、GitLab 三者一视同仁，由仓库信号（`git remote`、已有 `.fiber/.scratch/`）推断后与用户确认，用户想要哪种就是哪种。
+fiber 把这些**全部收敛到 `.fiber/` 一个目录下**——根目录保持干净，所有决策产物有唯一入口、可整体追溯、可一键忽略。
+
+issue tracker 的默认值不预设——`/setup-matt-pocock-skills` 跟随用户的设置意图：本地 markdown、GitHub、GitLab 三者一视同仁。
+
+它由仓库信号（`git remote`、已有 `.fiber/.scratch/`）推断后与用户确认，用户想要哪种就是哪种。
 
 `/setup-matt-pocock-skills` 是这一切的入口：跑一次，它探索你的仓库、推荐答案、确认后写入 `.fiber/docs/agents/*.md`，其余工程 skill 才知道去哪读配置。
 
@@ -125,9 +131,11 @@ spin 是 fiber 的**外围支撑层**——不直接编码、不直接决策，�
 边界很清晰：
 
 - **fiber** = 工程纪律（grill / spec / tickets / TDD / review / domain）
-- **spin** = 支撑工具（项目初始化、版本管理、渲染、自定义 helper）
+- **spin** = 支撑工具（提交、初始化、工作树、写作、侦查）
 
-目前 spin 内含一个 skill：`edit-article`（本文档就是用它写的）。后续会承接更多本地化定制——版本同步、文档渲染、b3oy1 自己的 helper。
+spin 目前含 6 个 skill：`snap`（纯变更提交）与 `worktrees`（工作树创建与清理）让日常开发顺畅运转；
+
+`setup-b3oy1`（本仓库 skill 栈初始化）、`setup-ship`（为消费项目生成 ship skill）负责初始化；`recon`（口头侦查报告）与 `edit-article`（本文档就是用它写的）辅助理解与写作。
 
 spin 不与 fiber 抢地盘：凡是「编排骨架 + 可复用纪律」归 fiber，凡是「让这套体系运转和维护的胶水」归 spin。
 
@@ -143,9 +151,12 @@ b3oy1/
 │   │   ├── .claude-plugin/{plugin.json, DISTILL.meta.json}
 │   │   ├── skills/                   # 每个 skill 一个目录
 │   │   └── reference/matt/LICENSE    # 上游 MIT 许可
-│   └── spin/                         # 支撑工具
-│       └── skills/edit-article/
-└── scripts/distill.py                # 跟上游重新蒸馏
+│   └── spin/                         # 支撑工具，6 个 skill
+│       ├── .claude-plugin/plugin.json
+│       └── skills/                   # edit-article / recon / setup-b3oy1 / setup-ship / snap / worktrees
+└── scripts/
+    ├── distill.py                    # 跟上游重新蒸馏
+    └── test_distill.py               # 蒸馏逻辑测试
 ```
 
 ### 7. 安装与蒸馏
@@ -166,17 +177,20 @@ claude plugin install spin@b3oy1
 python3 scripts/distill.py
 ```
 
-蒸馏是 **config 驱动 + 全局路径前缀替换**，幂等可复跑：
+蒸馏是 **config 驱动 + 全局路径前缀替换**，幂等可复跑（`scripts/test_distill.py` 守护关键逻辑）：
 
 - 只改 `setup` skill 本体 + 2 个 seed template 的路径（→ `.fiber/`）
 - 其余 21 个 skill 的 `.md` 原样拷贝，文件名全保留
 - 白名单 bucket：`engineering` / `productivity`（matt 新增目录默认不取）
-- skill 灵魂不动，只做机械安全的路径替换：正文连续路径走字面量前缀替换；ASCII 目录树走路径重写（展平节点路径 → 应用前缀规则 → 重建树），规则作用域从裸字符串升级到节点路径，仍声明式、可预测（见 `.fiber/docs/adr/0001-distill-tree-rewrite.md`）
+- skill 灵魂不动，只做机械安全的路径替换：正文连续路径走字面量前缀替换；ASCII 目录树走路径重写（展平节点路径 → 应用前缀规则 → 重建树）
+- 树重写的规则设计见 `.fiber/docs/adr/0001-distill-tree-rewrite.md`
 
 版本与 hash 追溯记在 `plugins/fiber/.claude-plugin/DISTILL.meta.json`——上游 commit、每个 skill 的 hash、蒸馏日期、策略说明都在里面，方便审计「改了什么、为什么改」。
 
 ### 8. 致谢
 
-fiber 的 22 个工程 skill 蒸馏自 [mattpocock/skills](https://github.com/mattpocock/skills)（MIT），skill 的灵魂、四问题叙事、分类原则全部归属 Matt Pocock。本仓库只做了三件事：收敛到统一 `.fiber/` 命名空间、setup 入口意图驱动、配上 spin 支撑层。
+fiber 的 22 个工程 skill 蒸馏自 [mattpocock/skills](https://github.com/mattpocock/skills)（MIT），skill 的灵魂、四问题叙事、分类原则全部归属 Matt Pocock。spin 的 `edit-article` 同样来自 matt。
+
+（其源在 matt 的 personal bucket。）本仓库自己做的是：收敛到统一 `.fiber/` 命名空间、setup 入口意图驱动、配上 spin 支撑层。
 
 本仓库同样采用 **MIT** 协议，见根目录 `LICENSE`。上游 matt 的原始许可文件保留在 `plugins/fiber/reference/matt/LICENSE`。
