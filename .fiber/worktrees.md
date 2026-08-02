@@ -4,4 +4,4 @@ destination 与 throwaway worktree 的单一真源。每行一条：ticket/issue
 
 | Ticket/issue | Worktree 路径 | 分支 | 状态 |
 |---|---|---|---|
-|  |  |  |  |
+| wayfinder #45 实现 | /Volumes/Under_M2/morphiiouo/b3oy1/.fiber/worktrees/implement-convention | worktree-implement-convention | PR #53 待合并 |
