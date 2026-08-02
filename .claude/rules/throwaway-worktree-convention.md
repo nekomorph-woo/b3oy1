@@ -18,11 +18,15 @@ The table is the anchor: it names every fiber-plugin skill, and the layer its ou
 
 The table answers only "which layer does my work belong to". When a destination worktree is *created* is a trigger rule, defined in the destination layer below — the table does not decide that.
 
+## Where worktrees live
+
+Every worktree — throwaway or destination — lives in **`.fiber/worktrees/<slug>/`** inside the repo, where `<slug>` is the branch or task name. This is the b3oy1 unified directory; worktrees never live outside it. The `.gitignore` excludes `.fiber/worktrees/`, so worktree directories never show up as untracked files in the main working tree. The routing table at `.fiber/worktrees.md` maps ticket → path → branch.
+
 ## The convention
 
 Rules for the **throwaway** layer. A throwaway's job is done once its decision is made; it must not leak into the destination.
 
-1. **Throwaway code goes in a git worktree** on its own branch, forked from the current local branch — not necessarily main. If the current branch has uncommitted or unpushed work, commit and push it first, so the new branch forks from a clean, fixed point. `git worktree add` is git's native multi-working-directory mechanism — it lets several throwaways exist in parallel without checkout-juggling. This is a git-layer convention, independent of any agent runtime.
+1. **Throwaway code goes in a git worktree** at `.fiber/worktrees/<slug>/` (see Where worktrees live), on its own branch, forked from the current local branch — not necessarily main. If the current branch has uncommitted or unpushed work, commit and push it first, so the new branch forks from a clean, fixed point. `git worktree add` is git's native multi-working-directory mechanism — it lets several throwaways exist in parallel without checkout-juggling. This is a git-layer convention, independent of any agent runtime.
 
 2. **Never merge a throwaway branch into the main branch.** No PR from a throwaway branch to main. The main branch keeps only validated decisions and destination code.
 
@@ -53,7 +57,7 @@ A destination worktree is created when either signal fires:
 
 **The AI does not improvise this.** Without a destination-layer skill invocation or an explicit user request, the AI must not open a destination worktree based on its own read of the situation.
 
-When a signal fires, the AI creates the worktree **automatically — no proposal step**. The fork point must be clean: if the current branch has uncommitted work, **ask the user first** (per the git-working-tree rule) before committing it — never touch uncommitted user work on its own. After creation, register the worktree in `.fiber/worktrees.md` (see Routing below), so a new session routes to it automatically.
+When a signal fires, the AI creates the worktree **automatically — no proposal step**, at `.fiber/worktrees/<slug>/` (see Where worktrees live). The fork point must be clean: if the current branch has uncommitted work, **ask the user first** (per the git-working-tree rule) before committing it — never touch uncommitted user work on its own. After creation, register the worktree in `.fiber/worktrees.md` (see Routing below), so a new session routes to it automatically.
 
 **Task-granularity reuse.** Before creating, check `.fiber/worktrees.md`: if the same unfinished task already has a destination worktree, reuse it — do not create a second one. One worktree per unfinished task. When the task lands (its PR merges), remove the worktree and deregister the entry. There is no parallelism cap beyond that.
 
