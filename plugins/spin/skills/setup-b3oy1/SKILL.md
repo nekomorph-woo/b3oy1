@@ -60,7 +60,13 @@ The copy is **overwrite-as-update**: refresh the four b3oy1-namespaced files in 
 
 Completion: `.claude/rules/` carries all four — three verbatim, `b3oy1-conversation-style.md` with `{{USER_SPECIFIED_LANGUAGE}}` filled from the user's answer.
 
-### 4. Inject sub-issue discipline into the issue tracker doc
+### 4. Exclude the worktree home in `.gitignore`
+
+The worktree convention lives at `.fiber/worktrees/` inside the repo; without a `.gitignore` entry, every worktree directory shows up as untracked in the main working tree. Ensure the exclude is present — **idempotently**: if `.gitignore` already carries `.fiber/worktrees/`, do nothing; otherwise append it. Do not touch any other line of the file.
+
+Completion: `.gitignore` carries a `.fiber/worktrees/` exclude; main `git status` stays clean with worktrees present.
+
+### 5. Inject sub-issue discipline into the issue tracker doc
 
 Open `.fiber/docs/agents/issue-tracker.md` (written in step 1) and ensure the sub-issue discipline is present. The base seed already describes three tiers; b3oy1 tightens the top tier.
 
@@ -72,14 +78,14 @@ Do **not** edit the fiber seed template (`plugins/fiber/skills/setup-matt-pocock
 
 Completion: `.fiber/docs/agents/issue-tracker.md` carries the sub-issue discipline; the fiber seed is untouched.
 
-### 5. Done
+### 6. Done
 
 Tell the user the stack is ready, and which skills consume each artifact:
 
 - `wayfinder`, `to-tickets`, `triage` → `.fiber/docs/agents/*.md`
 - all agent sessions → `.claude/rules/agent-skills.md` (index), `.claude/rules/tracker-index-edit.md` (body safety), `.claude/rules/wayfinder-no-encroachment.md` + `.claude/rules/throwaway-worktree-convention.md` (planning pair), `.claude/rules/b3oy1-conversation-style.md` (house style)
 
-Mention they can edit any of these files directly later. Re-running this skill refreshes the four rule files from the templates (overwrite-as-update) — useful when the skill stack ships updated rules; it is also the path to switch trackers or restart from scratch.
+Mention they can edit any of these files directly later. Re-running this skill refreshes the four rule files from the templates (overwrite-as-update) and re-ensures the `.gitignore` exclude (idempotent) — useful when the skill stack ships updated rules; it is also the path to switch trackers or restart from scratch.
 
 Completion: every artifact listed above exists; the user knows the consumption map.
 
