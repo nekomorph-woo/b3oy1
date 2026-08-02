@@ -1,7 +1,6 @@
 ---
 name: snap
 description: Write one conventional-commit message for the staged diff and commit it, linking any issue the conversation already references.
-disable-model-invocation: true
 ---
 
 # Snap

@@ -21,6 +21,9 @@ node_modules/
 .claude/scheduled_tasks.json
 .claude/worktrees/
 
+# git worktree 家目录（见 .claude/rules/throwaway-worktree-convention.md）
+.fiber/worktrees/
+
 # distill 临时 clone（防御性，正常在 /tmp 下）
 matt-src/
 

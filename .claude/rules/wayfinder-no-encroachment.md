@@ -6,7 +6,7 @@ Wayfinder is **plan, don't do**. Planning sessions (map open, tickets at the fro
 
 A ticket's state tells you whether you plan or do:
 
-- **Frontier / grilling / hand-off** → you are still planning. Hand the work off to the implementation workstream (worktree + commit + PR). Do not write destination code.
+- **Frontier / grilling / hand-off** → you are still planning. Hand the work off — leave the wayfinder session; implementation happens elsewhere (to-spec → implement, or implement directly). Do not write destination code. This rule does not prescribe *how* the implementation workstream isolates its work (branch, worktree, container — that is the runtime's concern); it only marks the seam.
 - **Closed / handed off** → the implementation workstream owns it. That is where code gets written.
 
 ## Strong signal: do not cross
