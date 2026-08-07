@@ -18,17 +18,31 @@ disable-model-invocation: true
 
     python3 scripts/distill.py --check
 
-dry-run 只 clone 上游 + 跑内容检查，**不拷贝、不做路径替换、不写 meta**。产出 `distill-check.html`（ADR-0001 默认名，落仓库根，每次覆盖）。
+dry-run 只 clone 上游 + 跑内容检查，**不拷贝、不做路径替换、不写 meta**。产出 `distill-report/distill-check-<yy-MM-dd-HH-ss>.html`（时间戳文件名，入 git 供 commit 追踪；`--check-out` 可改路径）。
 
-用户若指定输出路径，原样透传：
+完成标准：命令跑完，终端打印出报告的绝对路径；脚本退出码已读到（`0`=无变更 / `2`=有变更 / `1`=bucket 或 extra skill 缺失）。
 
-    python3 scripts/distill.py --check --check-out <path>
+### 1.5 可选：逐条精细分析（LLM）
 
-完成标准：命令跑完，终端打印出 `distill-check.html` 的绝对路径；脚本退出码已读到（`0`=无变更 / `2`=有变更 / `1`=bucket 或 extra skill 缺失）。
+dry-run 报告只有总览 + 原始 diff。需要逐段分析（变更点 / 影响 / 变更原由 / 学习要点 / 建议动作）时：
+
+1. 导出分析输入：
+
+       python3 scripts/distill.py --check --analyze-out
+
+   产出 `distill-report/distill-analysis-input.md`——按「独立变更段」切分（hunk 内连续增删行组），含输出规格。
+2. **当前执行本 skill 的 LLM 逐段分析**：读分析输入文件，按输出规格产出分析 JSON（逐独立变更段一条，禁止合并）。
+3. 合并进报告：
+
+       python3 scripts/distill.py --check --apply-analysis <分析-json-路径>
+
+   详情区段渲染为按 skill 分组的逐段分析形态。
+
+完成标准：报告打开后详情区段是分组卡 + 逐段五字段分析；报告与分析输入都落在 `distill-report/`。
 
 ### 2. 交接报告路径
 
-**只打印 `distill-check.html` 的绝对路径**，不 `open`、不产生副作用。提示用户可自行打开查看。
+**只打印报告的绝对路径**，不 `open`、不产生副作用。提示用户可自行打开查看。
 
 读终端 summary 行，口头汇报：几个 skill 变更 / 新增 / 删除 / 未变，extra skills 状态。
 

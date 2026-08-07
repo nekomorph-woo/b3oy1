@@ -5,6 +5,7 @@
 不测 parse/flatten/rebuild/serialize 内部实现(issue #21 Testing Decisions)。
 覆盖:9 个 fixture golden + 上游回归 + 幂等/一致性 + 双轨统一。
 """
+import json
 import sys
 import pathlib
 
@@ -379,3 +380,175 @@ def test_upstream_codebase_design_box_art_regression():
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))
+
+
+# ============================ 逐条精细分析（#55：切分/导出/合并） ============================
+
+def _u(*lines):
+    """unified diff 文本行助手（---/+++/@@/+/-/空格 前缀保留原样）。"""
+    return list(lines)
+
+
+def _fake_block(title, lines):
+    """fixture diff block：与 _build_diff_blocks 的产出结构对齐（键 lines）。"""
+    return {"title": title, "skill": title.split(" · ")[0], "rel": title.split(" · ")[1],
+            "lines": list(lines), "note": "E 方案", "id": f"diff-{title.replace(' · ', '-')}"}
+
+
+# ---------- 独立变更段切分 ----------
+
+def test_split_changes_hunk_inner_segments():
+    """同一 hunk 内被上下文行分隔的多个独立变更 → 拆多条（hunk 是窗口不是粒度）。"""
+    lines = _u("--- local/a.md", "+++ upstream-transformed/a.md",
+               "@@ -10,8 +10,8 @@", " ctx-keep-1",
+               "-old line A", "+new line A",
+               " ctx-between",
+               "-old line B", "+new line B",
+               " ctx-keep-2")
+    segs = distill.split_changes(lines)
+    assert len(segs) == 2, f"期望 2 段，实际 {len(segs)}"
+    assert all(s["hunk"] == "@@ -10,8 +10,8 @@" for s in segs)
+    assert "-old line A" in segs[0]["lines"] and "+new line A" in segs[0]["lines"]
+    assert "-old line B" in segs[1]["lines"] and "+new line B" in segs[1]["lines"]
+
+
+def test_split_changes_contiguous_is_one():
+    """连续增删行（无上下文行隔开）是同一段，不拆。"""
+    lines = _u("--- local/a.md", "+++ upstream-transformed/a.md",
+               "@@ -1,3 +1,3 @@", " ctx",
+               "-line one", "-line two", "+line ONE",
+               " ctx2")
+    segs = distill.split_changes(lines)
+    assert len(segs) == 1
+    assert len([l for l in segs[0]["lines"] if l.startswith(("-", "+"))]) == 3
+
+
+def test_split_changes_context_extended():
+    """段行含连续增删行 ± 前后各 1 上下文行（@@ 行紧邻时自然带入）。"""
+    lines = _u("--- local/a.md", "+++ upstream-transformed/a.md",
+               "@@ -5,5 +5,5 @@", " ctx-before",
+               "-changed", "+changed-new",
+               " ctx-after")
+    segs = distill.split_changes(lines)
+    seg_lines = segs[0]["lines"]
+    assert seg_lines[0] == "@@ -5,5 +5,5 @@"      # 前 1 上下文 = @@ 行
+    assert seg_lines[1] == " ctx-before"
+    assert " ctx-after" in seg_lines              # 后 1 上下文
+
+
+def test_split_changes_multi_hunk_multi_seg():
+    """多 hunk 各有多段：段序号全局连续、hunk 行号各自归属。"""
+    lines = _u("--- local/a.md", "+++ upstream-transformed/a.md",
+               "@@ -1,3 +1,3 @@", "-a", "+A",
+               "@@ -20,3 +20,3 @@", "-b", " ctx", "-c")
+    segs = distill.split_changes(lines)
+    assert len(segs) == 3
+    assert [s["label"] for s in segs] == ["变更 1", "变更 2", "变更 3"]
+    assert segs[0]["hunk"] == "@@ -1,3 +1,3 @@" and segs[2]["hunk"] == "@@ -20,3 +20,3 @@"
+
+
+def test_split_changes_no_changes_empty():
+    """无增删行 → 空段列表。"""
+    assert distill.split_changes([" ctx only"]) == []
+
+
+# ---------- 分析输入导出 ----------
+
+def test_analyze_input_md_contains_spec_and_segments(tmp_path):
+    """导出 Markdown：头部、输出规格、逐段（标题 + diff 原文 + 输出要求）三要素。"""
+    blocks = [_fake_block("engineering/wayfinder · SKILL.md",
+                          _u("--- local/SKILL.md", "+++ upstream-transformed/SKILL.md",
+                             "@@ -14,7 +14,7 @@", "-old", "+new"))]
+    md = distill.analyze_input_md(blocks, prev_commit="ed37663c")
+    assert "输出规格" in md and "summary" in md and "why" in md and "learn" in md
+    assert "engineering/wayfinder · SKILL.md" in md
+    assert "@@ -14,7 +14,7 @@" in md and "-old" in md and "+new" in md
+    assert "ed37663c" in md
+
+
+def test_analyze_input_md_segments_split():
+    """导出时同一文件多个独立变更段分别出现（禁止合并）。"""
+    blocks = [_fake_block("engineering/a · SKILL.md",
+                          _u("--- local/SKILL.md", "+++ upstream-transformed/SKILL.md",
+                             "@@ -1,5 +1,5 @@", " c", "-x", "+X", " c2", "-y", "+Y"))]
+    md = distill.analyze_input_md(blocks, prev_commit="")
+    assert md.count("变更 1") == 1 and md.count("变更 2") == 1
+
+
+# ---------- 分析合并渲染 ----------
+
+ANALYSIS_JSON = json.dumps([{
+    "file": "engineering/wayfinder · SKILL.md", "label": "变更 1",
+    "point": "名称引用规则精化。", "impact": "本地路由表无冲突。",
+    "why": "裸编号墙不可读。", "learn": "名称包裹链接。",
+    "action": "采纳", "detail": "检查回归测试。",
+}], ensure_ascii=False)
+
+REPORT_FIXTURE = (
+    "<!doctype html><html lang=zh><meta charset=utf8><body><div class=wrap>"
+    "<h1>蒸馏检查报告</h1><div class=summary></div>"
+    "<section><h2>变更详情（unified diff）</h2>"
+    '<details class="diff" open id="diff-engineering-wayfinder-SKILL-md">'
+    "<summary>engineering/wayfinder · SKILL.md</summary>"
+    '<div class="note">E 方案</div>'
+    '<pre class="unified"><span class="h">@@ -14,7 +14,7 @@</span>\n'
+    '<span class="d">-old</span>\n<span class="a">+new</span></pre>'
+    "</details></section></div></body></html>"
+)
+
+
+def test_apply_analysis_renders_grouped_section():
+    """apply 后报告：分组卡 section 替换详情区段、五字段齐、徽章、diff 平铺卡内。"""
+    out = distill.apply_analysis_to_report(REPORT_FIXTURE, ANALYSIS_JSON)
+    assert "变更详情 · 逐段分析" in out
+    assert "engineering/wayfinder" in out
+    assert "名称引用规则精化。" in out and "裸编号墙不可读。" in out
+    assert "学习要点" in out
+    assert "采纳" in out
+    assert "-old" in out and "+new" in out                     # diff 平铺在分组卡内
+    assert "变更详情（unified diff）" not in out                # 原 flat 区段已被替换
+
+
+def test_apply_analysis_bad_json_raises():
+    """坏 JSON → 明确报错，不静默。"""
+    try:
+        distill.apply_analysis_to_report(REPORT_FIXTURE, "{not json")
+        assert False, "应当抛错"
+    except (ValueError, json.JSONDecodeError):
+        pass
+
+
+def test_apply_analysis_missing_field_placeholder():
+    """分析条目缺字段 → 「—」占位渲染，报告仍生成。"""
+    bad = json.dumps([{"file": "engineering/wayfinder · SKILL.md", "action": "采纳"}],
+                     ensure_ascii=False)
+    out = distill.apply_analysis_to_report(REPORT_FIXTURE, bad)
+    assert "—" in out and "采纳" in out
+
+
+def test_apply_analysis_unmatched_file_no_jump():
+    """file 与 diff 块 title 失配 → 分析条照常渲染但无跳转。"""
+    orphan = json.dumps([{"file": "engineering/ghost · X.md", "action": "采纳",
+                          "point": "p", "impact": "i", "why": "w", "learn": "l"}],
+                        ensure_ascii=False)
+    out = distill.apply_analysis_to_report(REPORT_FIXTURE, orphan)
+    assert "engineering/ghost · X.md" in out and "变更详情" in out
+
+
+# ---------- 报告头来源行 ----------
+
+def test_src_row_contains_both_sources(tmp_path, monkeypatch):
+    """报告头来源行：上游 matt 链接+hash、本地远程地址+HEAD hash、对比基准。"""
+    def fake_git(*args, **kw):
+        if "remote" in args[0]:
+            return "https://github.com/nekomorph-woo/b3oy1.git\n"
+        return "abcdef0\n"
+    monkeypatch.setattr(distill.subprocess, "run",
+                        lambda *a, **k: type("R", (), {"stdout": fake_git(*a)})())
+    html = distill.write_check_report(tmp_path / "r.html", MATT, "ed37663c",
+                                      {"engineering": {"content_changed": []}}, {},
+                                      matt_ver="1.2.3", matt_commit="6acc160e")
+    txt = (tmp_path / "r.html").read_text()
+    assert "mattpocock/skills" in txt and "6acc160e" in txt
+    assert "https://github.com/nekomorph-woo/b3oy1" in txt and "abcdef0" in txt
+    assert "ed37663c" in txt

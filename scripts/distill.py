@@ -19,7 +19,7 @@ import re
 import shutil
 import subprocess
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 REPO = "https://github.com/mattpocock/skills"
@@ -657,7 +657,10 @@ def write_meta(commit, version, count, skills_by_bucket, extra_skills):
 # 报告形态：#5 prototype 选定方案——A 卡片总览（全量 skill + 状态徽章，变更卡可点跳转）
 # + A 折叠外壳（details/summary + note）+ C unified 红绿 diff + 右下角悬浮导航。
 # diff 数据源：#4 E 方案——左=本地原样、右=上游在内存跑蒸馏变换后（双边同形态，消除前缀噪音）。
-# 产物约定：ADR-0001——默认 distill-check.html（仓库根），每次覆盖，--check-out 可改路径，不入库。
+# 产物约定：#55——默认 distill-report/distill-check-<yy-MM-dd-HH-ss>.html（时间戳文件名，
+# 不互相覆盖），入 git 供 commit 追踪（.gitignore 不再忽略），--check-out 可改路径。
+# 报告头含双源追溯（上游 matt 链接+hash、本地远程地址+HEAD hash）；详情区段在
+# --apply-analysis 后渲染为按 skill 分组的逐段分析形态（#55 v1，原型验证定稿）。
 
 _REPORT_CSS = """
 :root { --g:#1f2328; --muted:#57606a; --bg:#f6f8fa; --card:#fff; --bd:#d0d7de;
@@ -719,6 +722,49 @@ pre.unified span.h { color:var(--chg); display:block; }
 .fab-list a { display:block; padding: 8px 12px; font-size: 12px; border-top: 1px solid #eaeef2;
   text-decoration:none; color: var(--g); }
 .fab-list a:hover { background: #f6f8fa; color: var(--chg); }
+/* #55 逐段分析：来源行 / 分组卡 / 逐段 / 徽章 / 规格卡 */
+.src-row { display:flex; gap:12px; flex-wrap:wrap; margin:14px 0 18px; }
+.src-row .src { display:flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--bd);
+  border-radius:8px; padding:10px 16px; font-size:13px; color:var(--g); }
+.src-row code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; background:var(--bg); border:1px solid var(--bd);
+  border-radius:4px; padding:1px 6px; font-size:12px; color:var(--g); }
+.src-row a { color:var(--g); text-decoration:none; border-bottom:1px dotted var(--muted); }
+.src-row .tag2 { font-size:11px; color:var(--muted); letter-spacing:.02em; }
+.gsec { margin-top:28px; }
+.gsec .sec { font-size:16px; margin:0 0 12px; padding-bottom:8px; border-bottom:1px solid var(--bd); }
+.spec-card { background:var(--card); border:1px solid var(--bd); border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:13px; }
+.spec-card summary { cursor:pointer; font-weight:600; font-size:13.5px; color:var(--g); }
+.spec-card pre { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; line-height:1.7; background:var(--bg);
+  border:1px solid var(--bd); border-radius:6px; padding:12px 14px; margin:10px 0 0; white-space:pre-wrap; color:var(--g); }
+.g1 { margin-bottom:24px; }
+.g1-h { font-size:15px; font-weight:600; margin:0 0 4px; padding-left:10px; border-left:3px solid var(--chg); line-height:1.4; }
+.g1-cnt { color:var(--muted); font-weight:400; font-size:12px; margin-left:10px; }
+.g1-item { background:var(--card); border:1px solid var(--bd); border-radius:8px; padding:14px 16px; margin-top:10px;
+  box-shadow:0 1px 2px rgba(31,35,40,.04); }
+.g1-head { display:flex; align-items:baseline; gap:10px; }
+.g1-file { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px; font-weight:600; color:var(--g); }
+.g1-n { color:var(--muted); font-size:12px; }
+.g1-head .badge { margin-left:auto; }
+.g1-f { display:flex; gap:8px; margin-top:10px; font-size:13.5px; line-height:1.65; color:var(--g); }
+.g1-f b { color:var(--muted); font-weight:500; font-size:12px; flex:0 0 auto; padding-top:1px; }
+.hunk { margin-top:14px; padding-left:12px; border-left:3px solid var(--chgbg); }
+.hunk-head { display:flex; align-items:center; gap:10px; }
+.hunk-no { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; font-weight:600; color:var(--chg); }
+.hunk-label { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; color:var(--muted); }
+.hunk-head .badge { margin-left:auto; }
+.hunk-f { display:grid; grid-template-columns:64px 1fr; gap:4px 14px; margin-top:8px; font-size:13.5px; line-height:1.65; color:var(--g); }
+.hunk-f b { color:var(--muted); font-weight:500; font-size:12px; text-align:right; }
+.h-d { margin-top:6px; font-size:13px; }
+.h-d b { color:var(--muted); font-weight:500; font-size:12px; }
+.g1-unified { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; line-height:1.6; background:var(--bg);
+  margin:12px 0 0; padding:10px 12px; overflow:auto; white-space:pre-wrap; border:1px solid var(--bd); border-radius:6px; color:var(--g); }
+.g1-unified span.a { color:var(--add); background:var(--addbg); display:block; }
+.g1-unified span.d { color:var(--del); background:var(--delbg); display:block; }
+.g1-unified span.h { color:var(--chg); display:block; }
+.badge { display:inline-block; border-radius:999px; padding:2px 10px; font-size:11.5px; font-weight:600; line-height:1.5; }
+.badge.ok   { background:var(--addbg); color:var(--add); border:1px solid var(--addbd); }
+.badge.warn { background:var(--chgbg); color:var(--chg); border:1px solid var(--chg); }
+.badge.pend { background:var(--bg); color:var(--muted); border:1px solid var(--bd); }
 """
 
 _STATUS_CN = {"unchanged": "未变", "changed": "变更", "added": "新增", "removed": "删除"}
@@ -776,6 +822,204 @@ def _load_prev_hashes():
         by_bucket[b] = skills
     extra = {e["name"]: e.get("hash") for e in m.get("extra_skills", [])}
     return by_bucket, extra, m.get("source", {}).get("commit", "")
+
+
+# ============================ 逐条精细分析（#55） ============================
+
+def _is_chg_line(l):
+    """unified diff 文本行是否增删行（排除 ---/+++ 文件头行）。"""
+    return (l.startswith("+") or l.startswith("-")) and not l.startswith(("--- ", "+++ "))
+
+
+def split_changes(lines):
+    """unified diff 文本行 → 独立变更段（#55 机械切分规则）。
+
+    先按 @@ hunk 头切窗口，再在 hunk 内按「连续增删行组」拆独立变更段——一个 hunk
+    窗口可能装多个逻辑独立 diff（被上下文行分隔），逐段分析、禁止合并。
+    段行 = 段所属 hunk 的 @@ 头（段起点前最近的 @@ 行）起，到段后 1 上下文行止；
+    hunk 字段取段内首个 @@ 行。返回 [{label, hunk, lines}]，label 全局连续「变更 N」。
+    """
+    ranges = []
+    for i, l in enumerate(lines):
+        if _is_chg_line(l):
+            if ranges and ranges[-1][1] == i - 1:
+                ranges[-1] = (ranges[-1][0], i)
+            else:
+                ranges.append((i, i))
+    hunks = [i for i, l in enumerate(lines) if l.startswith("@@")]
+    out = []
+    for k, (s, e) in enumerate(ranges, 1):
+        hunk_idx = next((i for i in reversed(hunks) if i < s), None)
+        start = hunk_idx if hunk_idx is not None else max(0, s - 1)
+        ext = lines[start:e + 2]
+        out.append({"label": f"变更 {k}",
+                    "hunk": next((l for l in ext if l.startswith("@@")), ""),
+                    "lines": ext})
+    return out
+
+
+ANALYSIS_SPEC = """对每个「独立变更段」（连续增删行组）产出以下 JSON：
+
+- summary  变更摘要（可选，文件级一行概览，多段文件建议提供）
+- point    变更点——这段 diff 具体改了什么，指向具体内容，不空泛
+- impact   影响评估——对 b3oy1 本地（目录约定 / 替换规则 / 流程 / 产物）的具体影响；无影响要明说「无影响」
+- why      变更原由——上游为什么这么改：动机、要解决的问题、对读者的收益。禁止编造——
+           基于 diff 内容与 skill 目的合理推断，推断处标注；无法推断时明说「无法从 diff 推断」
+- learn    学习要点——从这段变更可学到什么：可迁移的规则 / 理念 / 写法，供 b3oy1 蒸馏者吸收
+- action   建议动作——采纳 / 检查规则 / 忽略，附一句说明
+
+要求：
+1. 每条基于实际 diff 行撰写，禁止泛泛而谈
+2. why 必须结合 skill 的目的与读者视角推断动机
+3. learn 要具体、可迁移——能落到 b3oy1 的实践或文档中
+4. 同一 hunk 窗口内多个独立变更段分别分析，禁止合并"""
+
+
+def analyze_input_md(blocks, prev_commit=""):
+    """content_changed 的 diff blocks → 分析输入 Markdown（#55 --analyze-out）。
+
+    头部说明 + JSON 输出规格 + 逐段（文件标题 / 变更序号 / hunk 行号 / diff 原文）。
+    由执行 /b3oy1-distill 的 LLM 逐段产出分析 JSON，经 --apply-analysis 合并回报告。
+    """
+    out = [f"# 蒸馏分析输入（dry-run · vs 上次 meta {prev_commit[:8] or '—'}）", "",
+           "对以下每个 content_changed 的 diff 文件，按「独立变更段」（连续增删行组）逐段分析。",
+           "产出 JSON 数组，每条对应一个变更段：", "",
+           "```json",
+           '[{"file": "<bucket>/<skill> · <rel>", "label": "变更 N",',
+           '  "summary": "(可选)文件级一行概览", "point": "变更点", "impact": "影响评估",',
+           '  "why": "变更原由", "learn": "学习要点", "action": "建议动作", "detail": "动作说明"}',
+           "]",
+           "```", "", "输出规格：", "```text", ANALYSIS_SPEC, "```", ""]
+    for b in blocks:
+        n_chg = sum(1 for l in b["lines"] if _is_chg_line(l))
+        out += ["---", f"## {b['title']}（{n_chg} 行变更）"]
+        for seg in split_changes(b["lines"]):
+            out += [f"### {seg['label']}" + (f" · {seg['hunk']}" if seg["hunk"] else ""),
+                    "```diff"] + list(seg["lines"]) + ["```", ""]
+    return "\n".join(out)
+
+
+_BADGE = {"采纳": "ok", "检查规则": "warn", "待分析": "pend"}
+_WEIGHT = {"采纳": 0, "检查规则": 1, "待分析": 2}
+_ACTION_NAME = {0: "采纳", 1: "检查规则", 2: "待分析"}
+
+
+def _badge_html(action):
+    cls = _BADGE.get(action, "pend")
+    return f'<span class="badge {cls}">{_html.escape(action or "待分析")}</span>'
+
+
+def _render_grouped_section(blocks, items):
+    """diff blocks + 分析条目 → 分组卡详情 section HTML（#55 v1 形态）。
+
+    items: [{file, label, summary?, point, impact, why, learn, action, detail?}]
+    file 与 block title 精确匹配才锚定对应段；失配文件条照常渲染（无跳转语义）。
+    """
+    by_file = {}
+    for it in items:
+        by_file.setdefault(it.get("file", ""), []).append(it)
+    groups = {}
+    for b in blocks:
+        groups.setdefault(b["skill_key"], []).append(b)
+    out = ['<section class="gsec"><h2 class="sec">变更详情 · 逐段分析</h2>',
+           '<details class="spec-card" open><summary>分析输出规格（LLM 逐段分析约束）</summary>',
+           f'<pre>{_html.escape(ANALYSIS_SPEC)}</pre></details>']
+    for sk, bs in groups.items():
+        out.append(f'<section class="g1"><h2 class="g1-h">{_html.escape(sk)}'
+                   f'<span class="g1-cnt">{len(bs)} 个文件</span></h2>')
+        for b in bs:
+            its = by_file.get(b["title"], [])
+            w = max((_WEIGHT.get(i.get("action"), 2) for i in its), default=2)
+            segs = split_changes(b["lines"])
+            cards = []
+            for i, seg in enumerate(segs):
+                it = its[i] if i < len(its) else {}
+                detail = (f'<div class="h-d"><b>动作说明</b><div>{_html.escape(it.get("detail") or "—")}</div></div>'
+                          if it.get("detail") else "")
+                hunk_ref = (f'<span class="hunk-label">{_html.escape(seg["hunk"])}</span>'
+                            if seg["hunk"] else "")
+                cards.append(
+                    f'<div class="hunk"><div class="hunk-head">'
+                    f'<span class="hunk-no">{_html.escape(seg["label"])}</span>{hunk_ref}'
+                    f'{_badge_html(it.get("action"))}</div>'
+                    f'<div class="hunk-f"><b>变更点</b><div>{_html.escape(it.get("point") or "—")}</div>'
+                    f'<b>影响</b><div>{_html.escape(it.get("impact") or "—")}</div>'
+                    f'<b>变更原由</b><div>{_html.escape(it.get("why") or "—")}</div>'
+                    f'<b>学习要点</b><div>{_html.escape(it.get("learn") or "—")}</div></div>{detail}'
+                    f'<pre class="g1-unified">{_unified_body(seg["lines"])}</pre></div>')
+            summary = next((_html.escape(i.get("summary")) for i in its if i.get("summary")), "")
+            sum_row = f'<div class="g1-f"><b>摘要</b><div>{summary}</div></div>' if summary else ""
+            out.append(f'<div class="g1-item"><div class="g1-head">'
+                       f'<span class="g1-file">{_html.escape(b["title"].split(" · ")[1])}</span>'
+                       f'<span class="g1-n">{len(segs)} 处变更</span>{_badge_html(_ACTION_NAME[w])}</div>'
+                       f'{sum_row}' + "".join(cards) + "</div>")
+        out.append("</section>")
+    matched = {b["title"] for b in blocks}
+    orphans = [it for f, its in by_file.items() if f not in matched for it in its]
+    if orphans:
+        out.append('<section class="g1"><h2 class="g1-h">未匹配文件'
+                   '<span class="g1-cnt">分析条目无对应 diff 块（不跳转）</span></h2>')
+        for it in orphans:
+            w = _WEIGHT.get(it.get("action"), 2)
+            out.append(f'<div class="g1-item"><div class="g1-head">'
+                       f'<span class="g1-file">{_html.escape(it.get("file") or "—")}</span>'
+                       f'{_badge_html(_ACTION_NAME[w])}</div>'
+                       f'<div class="hunk-f"><b>变更点</b><div>{_html.escape(it.get("point") or "—")}</div>'
+                       f'<b>影响</b><div>{_html.escape(it.get("impact") or "—")}</div>'
+                       f'<b>变更原由</b><div>{_html.escape(it.get("why") or "—")}</div>'
+                       f'<b>学习要点</b><div>{_html.escape(it.get("learn") or "—")}</div></div></div>')
+        out.append("</section>")
+    out.append("</section>")
+    return "\n".join(out)
+
+
+def apply_analysis_to_report(report_html, analysis_json):
+    """LLM 分析 JSON → 合并进报告 HTML（#55 --apply-analysis）。
+
+    纯字符串操作，不依赖 matt_src：从报告提取 diff blocks → 渲染分组卡 section →
+    替换「变更详情（unified diff）」section。坏 JSON / 无目标 section 抛 ValueError。
+    """
+    items = json.loads(analysis_json)
+    if not isinstance(items, list):
+        raise ValueError("分析 JSON 必须是数组")
+    blocks = []
+    for bid, title, note, body in re.findall(
+            r'<details class="diff" open id="(diff-[^"]+)"><summary>([^<]+)</summary>'
+            r'\s*<div class="note">(.*?)</div>\s*<pre class="unified">(.*?)</pre>', report_html, re.S):
+        lines = []
+        for l in body.split("\n"):
+            spans = re.findall(r'<span class="[had]">(.*?)</span>', l)
+            if spans:
+                lines.append("".join(_html.unescape(s) for s in spans))
+            else:
+                lines.append(_html.unescape(l))
+        blocks.append({"id": bid, "title": title, "skill_key": title.split(" · ")[0],
+                       "lines": lines})
+    sec = _render_grouped_section(blocks, items)
+    # lambda 替代：replacement 含 \x 等序列时不会被 re 当作转义解析
+    new_html, n = re.subn(r'<section><h2>变更详情.*?</section>', lambda m: sec,
+                          report_html, count=1, flags=re.S)
+    if not n:
+        raise ValueError("报告中没有「变更详情」section，无法合并")
+    return new_html
+
+
+def _src_row_html(matt_ver, matt_commit, prev_commit):
+    """报告头来源行：上游 matt 链接+hash、本地远程地址+HEAD hash、对比基准。"""
+    def _git(*a):
+        return subprocess.run(["git", *a], capture_output=True, text=True, cwd=ROOT).stdout.strip()
+    local_url = _git("remote", "get-url", "origin").removesuffix(".git")
+    local_hash = _git("rev-parse", "--short", "HEAD")
+    matt_url = "https://github.com/mattpocock/skills"
+    m = (f'<span class="src"><span class="tag2">上游</span>'
+         f'<a href="{matt_url}">mattpocock/skills</a> v{matt_ver} @ '
+         f'<a href="{matt_url}/commit/{matt_commit}"><code>{matt_commit[:8]}</code></a></span>')
+    l = (f'<span class="src"><span class="tag2">本地</span>'
+         f'<a href="{local_url}">{local_url}</a>'
+         f' @ <a href="{local_url}/commit/{local_hash}"><code>{local_hash}</code></a></span>')
+    b = (f'<span class="src"><span class="tag2">对比基准</span>'
+         f'<code>{prev_commit[:8] or "—"}</code>（上次蒸馏）</span>')
+    return f'<div class="src-row">{m}{l}{b}</div>'
 
 
 def _build_diff_blocks(matt_src, changes, ex_changes):
@@ -857,7 +1101,8 @@ def _render_card(r, label, sub, first_diff):
     return f'<div class="card {r["status"]}">{inner}</div>'
 
 
-def write_check_report(out_path, matt_src, prev_commit, changes, ex_changes):
+def write_check_report(out_path, matt_src, prev_commit, changes, ex_changes,
+                       matt_ver="", matt_commit=""):
     """生成 --check HTML 报告并写盘。返回退出码：有变更=2，无变更=0。"""
     prev_by_bucket, prev_extra, _ = _load_prev_hashes()
 
@@ -922,6 +1167,8 @@ def write_check_report(out_path, matt_src, prev_commit, changes, ex_changes):
            f"<meta name=viewport content='width=device-width,initial-scale=1'>"
            f"<title>蒸馏检查报告</title><style>{_REPORT_CSS}</style><body><div class=wrap>"]
     out.append(f'<h1>蒸馏检查报告 <span class="sub">dry-run · vs 上次 meta {prev_commit[:8] or "—"}</span></h1>')
+    if matt_commit:
+        out.append(_src_row_html(matt_ver, matt_commit, prev_commit))
     out.append(f'<div class="summary">{_pill_row(summary)}</div>')
     for bucket in INCLUDED_BUCKETS:
         bs = [r for r in rows if r["bucket"] == bucket]
@@ -968,8 +1215,12 @@ def main(argv=None):
     )
     parser.add_argument("--check", action="store_true",
                         help="dry-run：clone + 检查 + 产 HTML 报告，跳过所有蒸馏写入")
-    parser.add_argument("--check-out", metavar="PATH", default="distill-check.html",
-                        help="--check 的 HTML 报告输出路径（默认：仓库根 distill-check.html，每次覆盖）")
+    parser.add_argument("--check-out", metavar="PATH", default=None,
+                        help="--check 的 HTML 报告输出路径（默认：distill-report/distill-check-<yy-MM-dd-HH-ss>.html，时间戳文件名入 git）")
+    parser.add_argument("--analyze-out", metavar="PATH", nargs="?", const="__default__", default=None,
+                        help="--check 时导出分析输入 Markdown（裸用默认 distill-report/distill-analysis-input.md），供 LLM 逐段分析")
+    parser.add_argument("--apply-analysis", metavar="PATH", default=None,
+                        help="--check 时读 LLM 分析 JSON，合并进报告（详情区段渲染为逐段分组卡）")
     args = parser.parse_args(argv)
 
     step("dry-run 检查模式" if args.check else "蒸馏开始")
@@ -995,12 +1246,31 @@ def main(argv=None):
         sys.exit(1)
 
     if args.check:
-        out_path = Path(args.check_out)
+        if args.check_out:
+            out_path = Path(args.check_out)
+        else:
+            ts = datetime.now().strftime("%y-%m-%d-%H-%M-%S")
+            out_path = ROOT / "distill-report" / f"distill-check-{ts}.html"
         if not out_path.is_absolute():
             out_path = ROOT / out_path
-        rc = write_check_report(out_path, TMP, prev_commit, changes, ex_changes)
+        rc = write_check_report(out_path, TMP, prev_commit, changes, ex_changes,
+                                matt_ver=version, matt_commit=commit)
         print(f"\nHTML 报告：{out_path}")
         print(f"  打开：open '{out_path}'")
+        if args.analyze_out:
+            aout = Path(args.analyze_out if args.analyze_out != "__default__"
+                        else ROOT / "distill-report" / "distill-analysis-input.md")
+            if not aout.is_absolute():
+                aout = ROOT / aout
+            blocks = _build_diff_blocks(TMP, changes, ex_changes)
+            aout.write_text(analyze_input_md(blocks, prev_commit), encoding="utf-8")
+            print(f"分析输入：{aout}")
+        if args.apply_analysis:
+            ap = Path(args.apply_analysis)
+            analysis = ap.read_text(encoding="utf-8")
+            new_html = apply_analysis_to_report(out_path.read_text(encoding="utf-8"), analysis)
+            out_path.write_text(new_html, encoding="utf-8")
+            print(f"已合并逐段分析：{out_path}")
         sys.exit(rc)
 
     names = copy_skills_flat(skills)
