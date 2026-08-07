@@ -836,8 +836,9 @@ def split_changes(lines):
 
     先按 @@ hunk 头切窗口，再在 hunk 内按「连续增删行组」拆独立变更段——一个 hunk
     窗口可能装多个逻辑独立 diff（被上下文行分隔），逐段分析、禁止合并。
-    段行 = 段所属 hunk 的 @@ 头（段起点前最近的 @@ 行）起，到段后 1 上下文行止；
-    hunk 字段取段内首个 @@ 行。返回 [{label, hunk, lines}]，label 全局连续「变更 N」。
+    段行 = 连续增删行 ± 前后各 1 上下文行（@@ 行紧邻段前时自然带入，辅助定位）——
+    各段互不重叠（同 hunk 内第二段不重复第一段的增删行）。hunk 字段取段起点前
+    最近的 @@ 行。返回 [{label, hunk, lines}]，label 全局连续「变更 N」。
     """
     ranges = []
     for i, l in enumerate(lines):
@@ -848,13 +849,16 @@ def split_changes(lines):
                 ranges.append((i, i))
     hunks = [i for i, l in enumerate(lines) if l.startswith("@@")]
     out = []
+    last_end = -1
     for k, (s, e) in enumerate(ranges, 1):
-        hunk_idx = next((i for i in reversed(hunks) if i < s), None)
-        start = hunk_idx if hunk_idx is not None else max(0, s - 1)
+        # 起点取「前 1 上下文」但不得早于前段最后增删行——段间只隔 1 行上下文时
+        # 后段前上下文会吞前段增删行造成重叠（真实 diff 常见），宁可牺牲该行上下文。
+        start = max(max(0, s - 1), last_end + 1)
         ext = lines[start:e + 2]
-        out.append({"label": f"变更 {k}",
-                    "hunk": next((l for l in ext if l.startswith("@@")), ""),
-                    "lines": ext})
+        hunk_idx = next((i for i in reversed(hunks) if i < s), None)
+        hunk_line = lines[hunk_idx] if hunk_idx is not None else ""
+        out.append({"label": f"变更 {k}", "hunk": hunk_line, "lines": ext})
+        last_end = e
     return out
 
 
@@ -878,11 +882,15 @@ ANALYSIS_SPEC = """对每个「独立变更段」（连续增删行组）产出�
 def analyze_input_md(blocks, prev_commit=""):
     """content_changed 的 diff blocks → 分析输入 Markdown（#55 --analyze-out）。
 
-    头部说明 + JSON 输出规格 + 逐段（文件标题 / 变更序号 / hunk 行号 / diff 原文）。
-    由执行 /b3oy1-distill 的 LLM 逐段产出分析 JSON，经 --apply-analysis 合并回报告。
+    头部（用途 + 由谁分析 + 匹配约束）+ JSON 输出规格 + 逐段（文件标题 / 变更序号 /
+    hunk 行号 / diff 原文 / 该条输出要求）。由执行 /b3oy1-distill 的 LLM 逐段产出
+    分析 JSON，经 --apply-analysis 合并回报告。
     """
     out = [f"# 蒸馏分析输入（dry-run · vs 上次 meta {prev_commit[:8] or '—'}）", "",
            "对以下每个 content_changed 的 diff 文件，按「独立变更段」（连续增删行组）逐段分析。",
+           "**由谁分析**：当前执行 /b3oy1-distill skill 的 LLM 会话（非脚本内嵌）。",
+           "**匹配约束**：`file` 必须与下方文件标题精确一致（含 ` · ` 分隔）；`label` 必须与段序号",
+           "精确一致（`变更 1`、`变更 2`…）。LLM 输出顺序无关，按这两字段机械配对。", "",
            "产出 JSON 数组，每条对应一个变更段：", "",
            "```json",
            '[{"file": "<bucket>/<skill> · <rel>", "label": "变更 N",',
@@ -895,25 +903,56 @@ def analyze_input_md(blocks, prev_commit=""):
         out += ["---", f"## {b['title']}（{n_chg} 行变更）"]
         for seg in split_changes(b["lines"]):
             out += [f"### {seg['label']}" + (f" · {seg['hunk']}" if seg["hunk"] else ""),
-                    "```diff"] + list(seg["lines"]) + ["```", ""]
+                    "```diff"] + list(seg["lines"]) + ["```",
+                    f"→ 为 `{seg['label']}` 产出一条分析（file=`{b['title']}`、label=`{seg['label']}`）。", ""]
     return "\n".join(out)
 
 
-_BADGE = {"采纳": "ok", "检查规则": "warn", "待分析": "pend"}
-_WEIGHT = {"采纳": 0, "检查规则": 1, "待分析": 2}
-_ACTION_NAME = {0: "采纳", 1: "检查规则", 2: "待分析"}
+# 动作 → (权重, 徽章样式)。权重：检查规则 > 采纳/忽略（已决策）> 待分析。单方真源。
+_ACTIONS = {"采纳": (0, "ok"), "检查规则": (1, "warn"), "忽略": (0, "pend"), "待分析": (2, "pend")}
+
+
+def _action_weight(action):
+    return _ACTIONS.get(action, _ACTIONS["待分析"])[0]
 
 
 def _badge_html(action):
-    cls = _BADGE.get(action, "pend")
+    _, cls = _ACTIONS.get(action, _ACTIONS["待分析"])
     return f'<span class="badge {cls}">{_html.escape(action or "待分析")}</span>'
+
+
+def _fields_html(it):
+    """五字段网格（变更点/影响/变更原由/学习要点）——文件卡与孤儿卡共用。"""
+    f = ""
+    for k, label in (("point", "变更点"), ("impact", "影响"), ("why", "变更原由"), ("learn", "学习要点")):
+        v = it.get(k)
+        f += f'<b>{label}</b><div>{_html.escape(v) if v else "—"}</div>'
+    return f'<div class="hunk-f">{f}</div>'
+
+
+def _match_item(its, label, idx):
+    """条目匹配：优先按 label 精确配对（LLM 输出顺序不稳时不错配），否则按位置回退。"""
+    for it in its:
+        if it.get("label") == label:
+            return it
+    return its[idx] if idx < len(its) else {}
+
+
+def _file_action_name(its):
+    """文件级动作 = 各段最重（检查规则 > 采纳/忽略 > 待分析）；同权重取段序在前。"""
+    best = None
+    for it in its:
+        if best is None or _action_weight(it.get("action")) > _action_weight(best.get("action")):
+            best = it
+    return best.get("action") if best else "待分析"
 
 
 def _render_grouped_section(blocks, items):
     """diff blocks + 分析条目 → 分组卡详情 section HTML（#55 v1 形态）。
 
     items: [{file, label, summary?, point, impact, why, learn, action, detail?}]
-    file 与 block title 精确匹配才锚定对应段；失配文件条照常渲染（无跳转语义）。
+    file 与 block title 精确匹配才锚定对应段；失配/未用条目进「未匹配文件」组照常渲染。
+    文件卡保留原 diff 块的 id（总览卡与 FAB 的 #diff-* 跳转保持有效）。
     """
     by_file = {}
     for it in items:
@@ -924,16 +963,20 @@ def _render_grouped_section(blocks, items):
     out = ['<section class="gsec"><h2 class="sec">变更详情 · 逐段分析</h2>',
            '<details class="spec-card" open><summary>分析输出规格（LLM 逐段分析约束）</summary>',
            f'<pre>{_html.escape(ANALYSIS_SPEC)}</pre></details>']
+    used = set()
     for sk, bs in groups.items():
         out.append(f'<section class="g1"><h2 class="g1-h">{_html.escape(sk)}'
                    f'<span class="g1-cnt">{len(bs)} 个文件</span></h2>')
         for b in bs:
             its = by_file.get(b["title"], [])
-            w = max((_WEIGHT.get(i.get("action"), 2) for i in its), default=2)
             segs = split_changes(b["lines"])
             cards = []
+            incomplete = False
             for i, seg in enumerate(segs):
-                it = its[i] if i < len(its) else {}
+                it = _match_item(its, seg["label"], i)
+                used.add(id(it))
+                if not it.get("point") or not it.get("impact") or not it.get("why") or not it.get("learn"):
+                    incomplete = True
                 detail = (f'<div class="h-d"><b>动作说明</b><div>{_html.escape(it.get("detail") or "—")}</div></div>'
                           if it.get("detail") else "")
                 hunk_ref = (f'<span class="hunk-label">{_html.escape(seg["hunk"])}</span>'
@@ -942,32 +985,27 @@ def _render_grouped_section(blocks, items):
                     f'<div class="hunk"><div class="hunk-head">'
                     f'<span class="hunk-no">{_html.escape(seg["label"])}</span>{hunk_ref}'
                     f'{_badge_html(it.get("action"))}</div>'
-                    f'<div class="hunk-f"><b>变更点</b><div>{_html.escape(it.get("point") or "—")}</div>'
-                    f'<b>影响</b><div>{_html.escape(it.get("impact") or "—")}</div>'
-                    f'<b>变更原由</b><div>{_html.escape(it.get("why") or "—")}</div>'
-                    f'<b>学习要点</b><div>{_html.escape(it.get("learn") or "—")}</div></div>{detail}'
+                    f'{_fields_html(it)}{detail}'
                     f'<pre class="g1-unified">{_unified_body(seg["lines"])}</pre></div>')
             summary = next((_html.escape(i.get("summary")) for i in its if i.get("summary")), "")
             sum_row = f'<div class="g1-f"><b>摘要</b><div>{summary}</div></div>' if summary else ""
-            out.append(f'<div class="g1-item"><div class="g1-head">'
+            flag = '<span class="badge pend">不完整</span>' if incomplete else ""
+            out.append(f'<div class="g1-item" id="{b["id"]}"><div class="g1-head">'
                        f'<span class="g1-file">{_html.escape(b["title"].split(" · ")[1])}</span>'
-                       f'<span class="g1-n">{len(segs)} 处变更</span>{_badge_html(_ACTION_NAME[w])}</div>'
+                       f'<span class="g1-n">{len(segs)} 处变更</span>{_badge_html(_file_action_name(its))}{flag}</div>'
                        f'{sum_row}' + "".join(cards) + "</div>")
         out.append("</section>")
     matched = {b["title"] for b in blocks}
     orphans = [it for f, its in by_file.items() if f not in matched for it in its]
+    orphans += [it for f, its in by_file.items() if f in matched for it in its if id(it) not in used]
     if orphans:
         out.append('<section class="g1"><h2 class="g1-h">未匹配文件'
-                   '<span class="g1-cnt">分析条目无对应 diff 块（不跳转）</span></h2>')
+                   '<span class="g1-cnt">分析条目无对应 diff 块 / 未被任何段使用</span></h2>')
         for it in orphans:
-            w = _WEIGHT.get(it.get("action"), 2)
             out.append(f'<div class="g1-item"><div class="g1-head">'
                        f'<span class="g1-file">{_html.escape(it.get("file") or "—")}</span>'
-                       f'{_badge_html(_ACTION_NAME[w])}</div>'
-                       f'<div class="hunk-f"><b>变更点</b><div>{_html.escape(it.get("point") or "—")}</div>'
-                       f'<b>影响</b><div>{_html.escape(it.get("impact") or "—")}</div>'
-                       f'<b>变更原由</b><div>{_html.escape(it.get("why") or "—")}</div>'
-                       f'<b>学习要点</b><div>{_html.escape(it.get("learn") or "—")}</div></div></div>')
+                       f'{_badge_html(it.get("action"))}</div>'
+                       f'{_fields_html(it)}</div>')
         out.append("</section>")
     out.append("</section>")
     return "\n".join(out)
@@ -1007,16 +1045,21 @@ def apply_analysis_to_report(report_html, analysis_json):
 def _src_row_html(matt_ver, matt_commit, prev_commit):
     """报告头来源行：上游 matt 链接+hash、本地远程地址+HEAD hash、对比基准。"""
     def _git(*a):
-        return subprocess.run(["git", *a], capture_output=True, text=True, cwd=ROOT).stdout.strip()
+        r = subprocess.run(["git", *a], capture_output=True, text=True, cwd=ROOT)
+        return r.stdout.strip() if r.returncode == 0 else ""
     local_url = _git("remote", "get-url", "origin").removesuffix(".git")
     local_hash = _git("rev-parse", "--short", "HEAD")
     matt_url = "https://github.com/mattpocock/skills"
     m = (f'<span class="src"><span class="tag2">上游</span>'
          f'<a href="{matt_url}">mattpocock/skills</a> v{matt_ver} @ '
          f'<a href="{matt_url}/commit/{matt_commit}"><code>{matt_commit[:8]}</code></a></span>')
-    l = (f'<span class="src"><span class="tag2">本地</span>'
-         f'<a href="{local_url}">{local_url}</a>'
-         f' @ <a href="{local_url}/commit/{local_hash}"><code>{local_hash}</code></a></span>')
+    if not local_url or not local_hash:
+        l = ('<span class="src"><span class="tag2">本地</span>'
+             '<code>—</code>（非 git 仓库或无 origin remote）</span>')
+    else:
+        l = (f'<span class="src"><span class="tag2">本地</span>'
+             f'<a href="{local_url}">{local_url}</a>'
+             f' @ <a href="{local_url}/commit/{local_hash}"><code>{local_hash}</code></a></span>')
     b = (f'<span class="src"><span class="tag2">对比基准</span>'
          f'<code>{prev_commit[:8] or "—"}</code>（上次蒸馏）</span>')
     return f'<div class="src-row">{m}{l}{b}</div>'
@@ -1268,7 +1311,12 @@ def main(argv=None):
         if args.apply_analysis:
             ap = Path(args.apply_analysis)
             analysis = ap.read_text(encoding="utf-8")
-            new_html = apply_analysis_to_report(out_path.read_text(encoding="utf-8"), analysis)
+            try:
+                new_html = apply_analysis_to_report(out_path.read_text(encoding="utf-8"), analysis)
+            except (ValueError, json.JSONDecodeError) as e:
+                out_path.unlink(missing_ok=True)   # 不落盘坏报告
+                print(f"❌ 合并分析失败：{e}")
+                sys.exit(3)
             out_path.write_text(new_html, encoding="utf-8")
             print(f"已合并逐段分析：{out_path}")
         sys.exit(rc)
