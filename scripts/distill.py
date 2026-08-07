@@ -740,7 +740,7 @@ pre.unified span.h { color:var(--chg); display:block; }
 .g1-h { font-size:15px; font-weight:600; margin:0 0 4px; padding-left:10px; border-left:3px solid var(--chg); line-height:1.4; }
 .g1-cnt { color:var(--muted); font-weight:400; font-size:12px; margin-left:10px; }
 .g1-item { background:var(--card); border:1px solid var(--bd); border-radius:8px; padding:14px 16px; margin-top:10px;
-  box-shadow:0 1px 2px rgba(31,35,40,.04); }
+  box-shadow:0 1px 2px rgba(31,35,40,.04); scroll-margin-top: 12px; }
 .g1-head { display:flex; align-items:baseline; gap:10px; }
 .g1-file { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px; font-weight:600; color:var(--g); }
 .g1-n { color:var(--muted); font-size:12px; }
@@ -969,6 +969,7 @@ def _render_grouped_section(blocks, items):
                    f'<span class="g1-cnt">{len(bs)} 个文件</span></h2>')
         for b in bs:
             its = by_file.get(b["title"], [])
+            header = [l for l in b["lines"] if l.startswith(("--- ", "+++ "))]
             segs = split_changes(b["lines"])
             cards = []
             incomplete = False
@@ -986,7 +987,7 @@ def _render_grouped_section(blocks, items):
                     f'<span class="hunk-no">{_html.escape(seg["label"])}</span>{hunk_ref}'
                     f'{_badge_html(it.get("action"))}</div>'
                     f'{_fields_html(it)}{detail}'
-                    f'<pre class="g1-unified">{_unified_body(seg["lines"])}</pre></div>')
+                    f'<pre class="g1-unified">{_unified_body(header + seg["lines"])}</pre></div>')
             summary = next((_html.escape(i.get("summary")) for i in its if i.get("summary")), "")
             sum_row = f'<div class="g1-f"><b>摘要</b><div>{summary}</div></div>' if summary else ""
             flag = '<span class="badge pend">不完整</span>' if incomplete else ""
@@ -1028,7 +1029,9 @@ def apply_analysis_to_report(report_html, analysis_json):
         for l in body.split("\n"):
             spans = re.findall(r'<span class="[had]">(.*?)</span>', l)
             if spans:
-                lines.append("".join(_html.unescape(s) for s in spans))
+                # 每 span 独立成行——h 类行在渲染时粘连（---+++@@ 拼一行），
+                # 提取必须拆开还原，否则 split_changes 把文件头/hunk 头误并入段。
+                lines.extend(_html.unescape(s) for s in spans)
             else:
                 lines.append(_html.unescape(l))
         blocks.append({"id": bid, "title": title, "skill_key": title.split(" · ")[0],

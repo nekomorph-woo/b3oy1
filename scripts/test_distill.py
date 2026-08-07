@@ -499,7 +499,9 @@ REPORT_FIXTURE = (
     '<details class="diff" open id="diff-engineering-wayfinder-SKILL-md">'
     "<summary>engineering/wayfinder · SKILL.md</summary>"
     '<div class="note">E 方案</div>'
-    '<pre class="unified"><span class="h">@@ -14,7 +14,7 @@</span>\n'
+    '<pre class="unified"><span class="h">--- local/SKILL.md</span>'
+    '<span class="h">+++ upstream-transformed/SKILL.md</span>'
+    '<span class="h">@@ -14,7 +14,7 @@</span>\n'
     '<span class="d">-old</span>\n<span class="a">+new</span></pre>'
     "</details></section></div></body></html>"
 )
@@ -514,6 +516,7 @@ def test_apply_analysis_renders_grouped_section():
     assert "学习要点" in out
     assert "采纳" in out
     assert "-old" in out and "+new" in out                     # diff 平铺在分组卡内
+    assert "--- local/SKILL.md" in out                         # 文件头行保留（#56）
     assert "变更详情（unified diff）" not in out                # 原 flat 区段已被替换
     assert 'id="diff-engineering-wayfinder-SKILL-md"' in out   # 文件卡保留原锚点（总览/FAB 跳转有效）
 
