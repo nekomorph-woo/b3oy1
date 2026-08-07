@@ -1027,13 +1027,18 @@ def apply_analysis_to_report(report_html, analysis_json):
             r'\s*<div class="note">(.*?)</div>\s*<pre class="unified">(.*?)</pre>', report_html, re.S):
         lines = []
         for l in body.split("\n"):
-            spans = re.findall(r'<span class="[had]">(.*?)</span>', l)
-            if spans:
-                # 每 span 独立成行——h 类行在渲染时粘连（---+++@@ 拼一行），
-                # 提取必须拆开还原，否则 split_changes 把文件头/hunk 头误并入段。
-                lines.extend(_html.unescape(s) for s in spans)
-            else:
-                lines.append(_html.unescape(l))
+            # h/a/d 行渲染时不带换行，会与相邻内容粘连（如 `<h>@@</h> ctx`、
+            # `<a>+new</a> ctx`）——span 与 span 外残留文本都独立成行还原。
+            pos = 0
+            for m in re.finditer(r'<span class="[had]">(.*?)</span>', l):
+                if m.start() > pos:
+                    lines.append(_html.unescape(l[pos:m.start()]))
+                lines.append(_html.unescape(m.group(1)))
+                pos = m.end()
+            if pos < len(l):
+                lines.append(_html.unescape(l[pos:]))
+            if not l:
+                lines.append("")
         blocks.append({"id": bid, "title": title, "skill_key": title.split(" · ")[0],
                        "lines": lines})
     sec = _render_grouped_section(blocks, items)
