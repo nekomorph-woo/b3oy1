@@ -35,11 +35,9 @@ SETUP_NAME = "setup-matt-pocock-skills"
 INCLUDED_BUCKETS = ["engineering", "productivity"]
 
 # 额外单独蒸馏的 skill（非白名单 bucket，各自落到 target plugin，剥离 strip 列出的文件）。
-EXTRA_SKILLS = [
-    # extra skill 的 per-skill 剥离用 strip 字段（剥非 openai.yaml 的文件）。
-    # agents/openai.yaml 由 clean_agents 统一处理，不在这里重复。
-    {"bucket": "personal", "name": "edit-article", "target": "spin"},
-]
+# 注：personal/edit-article 上游已删除（matt 1.2.3），不再由蒸馏管理，
+# 本地 plugins/spin/skills/edit-article/ 保留为 b3oy1 自有 skill。
+EXTRA_SKILLS = []
 
 # 全局替换：对所有非 setup skill 的所有 .md 应用（路径前缀，机械安全）。
 # 注意：CONTEXT-MAP.md 必须在 CONTEXT.md 之前（虽不互含，保险）。
