@@ -4,5 +4,4 @@ destination 与 throwaway worktree 的单一真源。每行一条：ticket/issue
 
 | Ticket/issue | Worktree 路径 | 分支 | 状态 |
 |---|---|---|---|
-| #55（原型查看） | /Volumes/Under_M2/morphiiouo/b3oy1/.fiber/worktrees/distill-report-analysis-proto | throwaway/distill-report-analysis-proto | 原型查看（PR #57 已合并，commit 0c1a900 恢复） |
 
