@@ -2,11 +2,11 @@
   "source": {
     "repo": "mattpocock/skills",
     "url": "https://github.com/mattpocock/skills",
-    "version": "1.2.0",
-    "commit": "ed37663cc5fbef691ddfecd080dff42f7e7e350d",
+    "version": "1.2.3",
+    "commit": "84fdeffd12f2ee307994d1eb6feb48173b6e0502",
     "license": "MIT"
   },
-  "distilled_at": "2026-07-28",
+  "distilled_at": "2026-08-08",
   "included_buckets": [
     "engineering",
     "productivity"
@@ -15,39 +15,35 @@
     "engineering": {
       "research": "6e70265f3f53",
       "domain-modeling": "9c70797062c1",
-      "wayfinder": "a4d1425ccdb7",
-      "setup-matt-pocock-skills": "41a52a12eaeb",
-      "diagnosing-bugs": "30d504909484",
-      "code-review": "a0a6ea333e7f",
+      "wayfinder": "aeb18e4fb78d",
+      "setup-matt-pocock-skills": "5299a09725f1",
+      "diagnosing-bugs": "678135974b08",
+      "code-review": "4b1f5f1d2277",
       "to-tickets": "628725128482",
-      "ask-matt": "3df81fef4456",
-      "improve-codebase-architecture": "938bc1086ebc",
-      "to-spec": "305911f9a650",
-      "codebase-design": "6af47ce35b6d",
-      "triage": "ac70de32fe89",
-      "prototype": "34a2e7866454",
+      "ask-matt": "718e2228f16c",
+      "wizard": "986f14f7422f",
+      "improve-codebase-architecture": "3aaa75370993",
+      "to-spec": "0c4fa46da7d6",
+      "codebase-design": "91450ed960a8",
+      "triage": "25b1f4701d15",
+      "prototype": "4afeb7a7b554",
       "resolving-merge-conflicts": "0569ceadd024",
       "grill-with-docs": "8683d99a2d34",
       "implement": "37152c34127f",
-      "tdd": "e8ecf2e6373d"
+      "tdd": "7140838e9453"
     },
     "productivity": {
-      "writing-great-skills": "396fd1098e3f",
+      "writing-for-agents": "b04480e9e98a",
+      "wait-what": "704eb201af8d",
       "handoff": "cdbcb9150df2",
+      "to-questionnaire": "e244c6cac632",
       "teach": "63feafa166e2",
       "grill-me": "25b02cbdacb3",
-      "grilling": "ee2160925846"
+      "grilling": "6280d8b1deb3"
     }
   },
-  "extra_skills": [
-    {
-      "bucket": "personal",
-      "name": "edit-article",
-      "target": "spin",
-      "hash": "be02c5ae0b89"
-    }
-  ],
-  "distilled_skills": 22,
+  "extra_skills": [],
+  "distilled_skills": 25,
   "distill_strategy": "config-driven + path-prefix + ASCII tree path-rewrite (rule B: per-context also under .fiber/); all non-setup skills path-replaced to .fiber/ (docs/agents .scratch .out-of-scope docs/adr CONTEXT.md; src/<ctx>/ per-context → src/<ctx>/.fiber/); ASCII trees regrouped (system docs → .fiber/, per-context → <ctx>/.fiber/); setup separately fine-tuned (tracker default→local, domain wording); filenames preserved",
   "namespace": ".fiber/",
   "update_note": "Only included_buckets distilled (deprecated/in-progress/misc/personal intentionally skipped). git diff <commit>..HEAD -- skills/{engineering,productivity}; rerun distill.py"

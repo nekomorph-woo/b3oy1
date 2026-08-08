@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Decision-driven engineering skills and support tooling — lightweight, verifiable workflows.",
-    "version": "0.4.0"
+    "version": "0.5.0"
   },
   "plugins": [
     {
       "name": "fiber",
       "source": "./plugins/fiber",
       "description": "Agent skills for decision-driven engineering — grilling, spec and tracer-bullet ticket flows, TDD, code review, and domain modelling. Verifiable loops, not guesswork.",
-      "version": "0.1.0"
+      "version": "0.2.0"
     },
     {
       "name": "spin",
