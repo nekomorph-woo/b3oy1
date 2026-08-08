@@ -1,0 +1,357 @@
+[
+  {
+    "file": "engineering/ask-matt · SKILL.md", "label": "变更 1",
+    "summary": "主流程重构：working directory 口径、/clear 语境管理、PHASE-BOUNDARIES.md 五选项树、skill 清单扩充与改名",
+    "point": "grill-with-docs 的适用判定从「have a codebase」改为「working in a working directory」，交叉引用删除（No codebase? Use /grill-me），并新增「paper trail... strictly the better one whenever a repo is there to leave it in」的强化表述",
+    "impact": "蒸馏产物 ask-matt 同段文案同步即可；b3oy1 本地规则（.claude/rules）无「codebase 判定」类表述，无冲突",
+    "why": "上游把「有代码库」的资源判定改为「在 working directory 中工作」的状态判定——后者更普适（个人笔记仓库、临时目录同样适用），且强化 grill-with-docs 的推荐性：同质访谈加 paper trail 双重收益",
+    "learn": "适用场景的判定用「环境状态」而非「资源有无」——working directory 是当下状态，codebase 是资源属性；写 skill 路由条件时优先状态性表述",
+    "action": "采纳，随蒸馏同步", "detail": "仅文案同步，无本地规则联动"
+  },
+  {
+    "file": "engineering/ask-matt · SKILL.md", "label": "变更 2",
+    "point": "to-spec/to-tickets 段补充：每个 implement 前 /clear 清上下文，并新增「Each ticket is self-contained, so the last one's context is disposable」",
+    "impact": "与 b3oy1 的 throwaway-worktree-convention（task-granularity、一任务一 worktree）互补无冲突——b3oy1 隔离目录层，上游隔离上下文层；蒸馏产物同步即可",
+    "why": "每个 implement 起于 fresh session，让上一个 ticket 的细节不污染下一个——与 b3oy1 多 worktree 并行的哲学在上下文维度的对应物",
+    "learn": "任务隔离有两层：目录层（worktree/分支）与上下文层（/clear）。b3oy1 已实践目录层隔离，上下文层隔离是同一原则的另一面，可写入本地流程说明",
+    "action": "采纳"
+  },
+  {
+    "file": "engineering/ask-matt · SKILL.md", "label": "变更 3",
+    "point": "smart zone 窗口从 ~120k 上调到 ~150k tokens；接近上限时的处置从「/handoff and continue in a fresh thread」改为「/compact at the nearest phase boundary and carry on」",
+    "impact": "数字口径更新；处置路径与变更 5 的 phase-boundaries 模型统一（/compact 在 boundary 处是默认选项），蒸馏产物同步",
+    "why": "主流模型上下文窗口已到 ~150k；且与 phase boundary 决策树一致——/compact 保留同一会话，在阶段边界压缩是成本最低的续走方式",
+    "learn": "上下文管理策略随模型窗口演进：窗口越大 /compact 越优于 /handoff（保留会话状态、成本低）；文档中的硬数字（120k/150k）会过时，可标注推导方式",
+    "action": "采纳"
+  },
+  {
+    "file": "engineering/ask-matt · SKILL.md", "label": "变更 4",
+    "point": "章节标题从「Crossing sessions」改为「Phase boundaries」",
+    "impact": "无（纯标题语义升级）",
+    "why": "概念升格——不再只是「跨会话」，而是阶段边界决策模型（与变更 5 的五选项树配套）；标题是概念的锚点",
+    "learn": "文档重构时标题改动即心智模型改动：Crossing sessions 是被动描述，Phase boundaries 是主动决策点",
+    "action": "采纳"
+  },
+  {
+    "file": "engineering/ask-matt · SKILL.md", "label": "变更 5",
+    "point": "/handoff 与 /compact 两条说明被替换为阶段边界五选项：Continue（免费，成本零）、/clear（清窗）、/handoff（便携 markdown 文件，仅限新 harness/新目录/同事/阶段中分叉，卖点是可移植性）、Subagent（紧任务独立窗口）、/compact（压缩上下文续跑，是默认——在决策树底部而非首选）；并指向 PHASE-BOUNDARIES.md 决策树",
+    "impact": "上游 SKILL.md 新增了对外部文件 PHASE-BOUNDARIES.md 的引用——需检查 b3oy1 蒸馏产物是否包含该文件（本次 dry-run 报告的文件级 diff 只列 SKILL.md，PHASE-BOUNDARIES.md 若为新增文件需确认在产物中，否则本地 ask-matt 引用悬空）",
+    "why": "把「什么时候用哪个」这个最模糊的决策固化成显式决策树——上下文管理是高频摩擦点，值得一份专门文档承载推理过程",
+    "learn": "把默认选项显式写出（/compact 是 bottom of tree，不是 first reach）比隐式偏好可执行；skill 引用外部文件时产物完整性要单独验证",
+    "action": "检查规则——确认蒸馏产物中 PHASE-BOUNDARIES.md 存在，缺失则补入蒸馏产物再采纳",
+    "detail": "本次蒸馏最重要的联动点：SKILL.md 引用新文件，产物完整性需验证"
+  },
+  {
+    "file": "engineering/ask-matt · SKILL.md", "label": "变更 6",
+    "point": "grill-me 判定改为「not working in a working directory」（stateless 语义保留）；新增 /grilling 原语条目（被 grill-me/grill-with-docs/triage/wayfinder/improve-codebase-architecture 内部运行，需要无包装的访谈时直接用它）；新增 /resolving-merge-conflicts（按 intent 逐 hunk 解决、永不 --abort、独立于所有流程）；prototype 条目重写——「Throwaway is a constraint on how the code is written, not a promise to destroy it: the answer folds into the real code, and the prototype itself is kept as a primary source on a prototype/<name> branch out of main, pointed at from the implementation issue」",
+    "impact": "prototype 的 throwaway 语义（答案折进真实代码、原型保留为 primary source、实现 issue 上留 pointer）与 b3oy1 throwaway-worktree-convention 完全同构（b3oy1 已实践）；grilling 原语对应 b3oy1 蒸馏产物中的 grilling skill；resolving-merge-conflicts 与本地规则（冲突 AI 不擅自解决、问用户）互补无冲突",
+    "why": "上游把 skill 体系分层显式化：原语（grilling）与命名入口（grill-me/grill-with-docs）分离；prototype 的 throwaway 措辞从「destroy」修正为「keep as primary source」——澄清销毁的是外壳而非答案",
+    "learn": "throwaway 的措辞演进（destroy → keep as primary source）值得吸收：b3oy1 规则已实践该模式（原型分支保留至实现落地），可用此措辞统一本地文档",
+    "action": "采纳 + 检查规则——b3oy1 分支命名（throwaway/<slug>）与上游（prototype/<name>）风格差异无需强改，语义已一致",
+    "detail": "本地约定与上游语义同构，仅命名风格不同"
+  },
+  {
+    "file": "engineering/ask-matt · SKILL.md", "label": "变更 7",
+    "point": "新增三个 skill 条目：/to-questionnaire（信息在别人头上时写问卷给对方填——是 grill-me 的反向，不访谈主题而是访谈发送方：发给谁、要拿回什么，产出物进 grill-with-docs 或 to-spec）；/wizard（仅人类可做的步骤：配置基础设施、凭证/CI secrets、陌生仪表盘、一次性迁移——生成交互 bash 脚本打开每个 URL、捕获每个值、写入 .env 与 GitHub secrets，model-invoked，agent 撞墙时自动伸手）；/wait-what（消息没落地的纠正——会话中用 .fiber/CONTEXT.md 词汇重讲，事后可用，grill-with-docs 是事前解药）",
+    "impact": "三个新增 skill 需蒸馏入产物（报告显示本次 4 新增：wizard/to-questionnaire/wait-what/writing-for-agents）；wizard 依赖 .env/GitHub secrets 交互约定，b3oy1 为本地 skill 仓库，实用场景有限但保留能力；wait-what 引用 .fiber/CONTEXT.md 词汇——与 b3oy1 domain docs 单源约定一致",
+    "why": "上游补齐三类缺口：信息在他人身上（to-questionnaire）、只有人能做的步骤（wizard）、沟通失败纠正（wait-what）——skill 矩阵按「信息与动作在谁手上」划分",
+    "learn": "skill 覆盖矩阵可按信息归属划分：用户脑内（grill-me）、仓库内（grill-with-docs）、他人（to-questionnaire）、人类专属动作（wizard）、消息落空（wait-what）；这为 b3oy1 自查 skill 缺口提供坐标",
+    "action": "采纳——3 个新 skill 随蒸馏入产物"
+  },
+  {
+    "file": "engineering/ask-matt · SKILL.md", "label": "变更 8",
+    "point": "writing-great-skills 条目被 writing-for-agents 替换：定位从「reference for writing and editing skills well」改为「reference for writing documents agents consume: skills, AGENTS.md, pointed-at docs」",
+    "impact": "上游删除 writing-great-skills 并新增 writing-for-agents（报告已显示 1 删除 + 1 新增）；b3oy1 本地 .claude/rules 无对 writing-great-skills 的引用，无悬空引用",
+    "why": "写作对象的定位从「好 skill」扩展为「agent 消费的一切文档」——AGENTS.md 与指向文档一并纳入",
+    "learn": "术语跟随读者对象演进：skills → documents agents consume；b3oy1 编写本地规则时可对照此口径（.claude/rules 即 agent 消费文档）",
+    "action": "采纳，随蒸馏同步增删"
+  },
+  {
+    "file": "engineering/code-review · SKILL.md", "label": "变更 1",
+    "summary": "PRD 术语全量改为 spec（description、Spec 轴定义、查找路径）+ 删除子代理工具细节",
+    "point": "frontmatter description 中「originating issue/PRD」改为「originating issue/spec」",
+    "impact": "与 b3oy1 术语一致（本地已统一用 spec）；蒸馏产物同步即可；b3oy1 conversation-style.md 仍将 PRD 列入保留术语清单，属本地文档口径，不受影响",
+    "why": "上游术语统一运动：spec 取代 PRD（与 to-spec skill 命名对齐），description 是 skill 被检索的第一入口，术语必须从这里开始统一",
+    "learn": "术语统一从 frontmatter description 开始——它决定 skill 何时被触发、如何被描述",
+    "action": "采纳"
+  },
+  {
+    "file": "engineering/code-review · SKILL.md", "label": "变更 2",
+    "point": "Spec 轴定义「originating issue / PRD / spec」→「originating issue / spec」",
+    "impact": "无（纯术语清理）", "why": "与变更 1 同属术语统一",
+    "learn": "轴定义中的术语要跟着全局术语变化，避免新旧并存造成二义", "action": "采纳"
+  },
+  {
+    "file": "engineering/code-review · SKILL.md", "label": "变更 3",
+    "point": "spec 文件查找路径「A PRD/spec file under docs/ specs/ .fiber/.scratch/」→「A spec file under ...」",
+    "impact": "b3oy1 本地 spec 均位于 .fiber/docs/agents/ 等路径，命名一致；无影响",
+    "why": "同上", "learn": "查找路径列举要与实际命名一致，避免双名分叉", "action": "采纳"
+  },
+  {
+    "file": "engineering/code-review · SKILL.md", "label": "变更 4",
+    "point": "删除「Send a single message with two Agent tool calls. Use the general-purpose subagent for both.」——并行子代理的实现细节从正文移除",
+    "impact": "skill 不再锁死代理工具形态，b3oy1 无本地依赖该细节；蒸馏产物同步",
+    "why": "工具调用细节会随底层 API 演进过时（Agent 工具签名、subagent 类型都可能变），skill 只应描述 what/why 不写 how 的具体调用",
+    "learn": "skill 正文写意图与流程，不写工具调用语法——这是 b3oy1 编写本地规则（.claude/rules）时应遵循的同一原则",
+    "action": "采纳"
+  },
+  {
+    "file": "engineering/codebase-design · DESIGN-IT-TWICE.md", "label": "变更 1",
+    "point": "「Spawn 3+ sub-agents in parallel using the Agent tool」→「Spawn 3+ sub-agents in parallel」——删除工具限定",
+    "impact": "无（本地无该细节引用）", "why": "与 code-review 变更 4 同一去工具化模式：实现细节不写进 skill",
+    "learn": "同一去工具化模式在多文件出现，说明是系统性偏好而非个案", "action": "采纳"
+  },
+  {
+    "file": "engineering/diagnosing-bugs · SKILL.md", "label": "变更 1",
+    "summary": "新增 Redact 章节——所有展示的命令/输出/产物先脱敏，循环对 env vars 构建",
+    "point": "新增 ## Redact 章节：先脱敏每个 secret（写 <REDACTED> 占位）；构建循环对 env vars 进行，使凭证留在环境而非展示中；捕获的产物带 auth header 时只引用携带信号的几行；脱敏后不足以诊断时明说并询问用户",
+    "impact": "安全约束新增——b3oy1 的 diagnosing-bugs 蒸馏产物需同步；本地规则无冲突；对执行蒸馏/诊断的会话有行为影响（所有展示先脱敏）",
+    "why": "bug 诊断必然展示命令、输出、捕获产物，是最容易泄露凭证的场景——把脱敏从散落提醒提升为章节级硬约束",
+    "learn": "安全约束应内嵌为 skill 的执行章节（带默认行为：<REDACTED>、env vars、只引信号行），而非依赖执行者的自觉；b3oy1 写诊断类规则时可沿用此结构",
+    "action": "采纳"
+  },
+  {
+    "file": "engineering/diagnosing-bugs · SKILL.md", "label": "变更 2",
+    "point": "「a captured artifact」→「a redacted captured artifact」——请求产物时明确要求脱敏版本",
+    "impact": "无（措辞联动）", "why": "与 Redact 章节呼应，请求端就锁定脱敏", "learn": "约束要在请求/交接两端都出现，才能闭环", "action": "采纳"
+  },
+  {
+    "file": "engineering/diagnosing-bugs · SKILL.md", "label": "变更 3",
+    "point": "Phase 1 完成条件「paste the invocation and its output」→「show the invocation and its output, redacted」",
+    "impact": "红绿循环的展示环节同样要求脱敏；b3oy1 蒸馏产物同步",
+    "why": "完成条件的展示动作与 Redact 章节一致——循环越紧，展示越多，脱敏越必须",
+    "learn": "流程完成条件里的每个动作都要过一遍新增约束（paste → show, redacted）", "action": "采纳"
+  },
+  {
+    "file": "engineering/improve-codebase-architecture · SKILL.md", "label": "变更 1",
+    "point": "「use the Agent tool with subagent_type=Explore」→「spawn a sub-agent to walk the codebase」",
+    "impact": "无（去工具化）；b3oy1 本地无对 Explore 类型的依赖", "why": "同 code-review 变更 4 的去工具化模式",
+    "learn": "同上", "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 1",
+    "summary": "逻辑原型形态从 TUI 全面转为单文件共享 HTML——自由按钮 + 分页引导 walkthrough、domain language、非开发者可驱动",
+    "point": "形态定义从「tiny interactive terminal app」改为「single, self-contained HTML file — a shareable demo — that lets anyone drive a state model by clicking buttons」；新增受众论证：一个文件零安装，可交给非开发者（设计师/PM/领域专家）亲手感受模型，用他们的语言而非代码的语言",
+    "impact": "原型形态哲学变化——b3oy1 的 throwaway 原型实践多为代码/终端验证，单文件 HTML 形态可借鉴（原型可分享给利益相关者）；与现有约定无冲突，蒸馏产物同步",
+    "why": "逻辑原型的受众从「写代码的人」扩展到「非开发者」——共享 HTML 让利益相关者在交付前亲手验证模型，早于实现暴露想法缺陷",
+    "learn": "原型可按受众分层：开发者驱动（TUI/CLI）vs 非开发者驱动（单文件 HTML）；受众决定形态，形态决定全部工程约束",
+    "action": "采纳", "detail": "b3oy1 的原型产物若需他人评审，可参考单文件 HTML 形态"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 2",
+    "point": "「the user wants to press buttons」→「someone wants to press buttons」",
+    "impact": "无（受众泛化措辞）", "why": "承接变更 1 的受众扩展", "learn": "受众扩展要贯穿全文措辞（user → someone）", "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 3",
+    "point": "问题声明位置从「the prototype's README or a comment at the top of the file」改为「at the top of the demo (in a visible intro, not just a comment)」",
+    "impact": "无冲突；蒸馏产物同步", "why": "可见性：非开发者打开文件第一眼就该看到「这个 demo 回答什么问题」，而不是翻 README",
+    "learn": "关键信息的可见层级：demo 内可见 intro > 注释 > 外部 README——信息要放在受众第一眼的位置",
+    "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 4",
+    "point": "章节 2 标题从「Pick the language」改为「Isolate the logic in a portable module」（原章节 3 前移顶替）",
+    "impact": "章节结构重排，蒸馏产物同步", "why": "逻辑可移植性优先于语言选择——先隔离逻辑模块，语言反而是次要决策",
+    "learn": "章节排序是决策优先级的表达：portable module 提到语言选择之前", "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 5",
+    "point": "删除「使用宿主项目语言/遵循项目工具约定」两段；逻辑隔离方式从「behind a small, pure interface」改为「in a single <script> block written as a small, pure module」",
+    "impact": "单文件约束下语言自由（内嵌 JS）；lift 语义保留（模块可提到真实代码库）；蒸馏产物同步",
+    "why": "单文件 HTML 形态下「跟随宿主项目」不再适用；模块可移植性仍是原型价值的核心",
+    "learn": "形态变化时，随形态失效的旧约束要整段删除而非打补丁（Pick the language 整个降级消失）",
+    "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 6",
+    "point": "纯模块约束改写：从「no I/O, no terminal code, no console.log」变为「no DOM, no document, no button handlers reaching inside it. The page calls into it; nothing flows the other direction」；收益句「This is what makes the prototype useful past its own lifetime」提前为段尾总结",
+    "impact": "约束随形态迁移（TUI 的 console 约束 → 页面的 DOM 约束）；核心不变：验证过的 reducer/machine/函数集直接 lift；蒸馏产物同步",
+    "why": "纯模块边界是原型可复用的根基——无论外壳是 TUI 还是页面，逻辑必须无副作用、可独立提取",
+    "learn": "形态迁移时约束按新边界重写（console → DOM），但「可 lift」的验收标准不变——b3oy1 写原型类规则时可对照",
+    "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 7",
+    "point": "原 TUI 构建段落合并为「### 3. Build the shareable HTML file」标题",
+    "impact": "章节结构重排", "why": "与 LOGIC.md 单文件形态对齐", "learn": "—", "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 8",
+    "point": "单文件工程约束：「One file, plain HTML/CSS/JS — no framework, no bundler, no server, everything inline so it opens by double-click and survives being emailed around」",
+    "impact": "「可分享」被定义为可验证的工程约束；蒸馏产物同步",
+    "why": "可分享性的硬性要求：任何安装/构建步骤都会杀死非开发者受众",
+    "learn": "抽象目标（shareable）要落到可验证的工程约束（双击可开、可邮件、零依赖）",
+    "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 9",
+    "point": "「Write it for a non-developer. Every label is in domain language, not code — buttons and state read like the business, not the reducer. Explain in plain words what's happening」",
+    "impact": "UI 文案原则；b3oy1 的 tui-design/frontend-design 相关实践无冲突", "why": "语言是受众的界面——业务语言而非 reducer 语言",
+    "learn": "面向非开发者的 UI：领域词汇 > 代码词汇，按钮读起来像业务操作而非函数调用", "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 10",
+    "point": "布局从「TUI frame 结构」改为「clean hierarchy, top to bottom」",
+    "impact": "无（布局措辞）", "why": "页面形态下的布局语言", "learn": "—", "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 11",
+    "point": "页面四段式结构：1) 标题 + 一句话问题说明（来自步骤 1 的问题）2) 当前状态——完整相关状态渲染为可读面板（带标签字段而非原始 JSON dump），每次点击后重渲染并点出变化 3) 自由按钮——每个 action 一个按钮、随时可用，点击 dispatch 并重渲染 4) 引导 walkthrough——每个场景一个 tab：情境的 plain-language 描述 + 有序按钮步骤（每步都是真实按钮，执行该 action 并推进），起始重置到已知初始状态保证场景每次运行一致",
+    "impact": "walkthrough 的「重置到已知初始状态」使场景可重复，与 b3oy1 的 tdd/验证理念可互补；蒸馏产物同步 LOGIC.md 全文",
+    "why": "非开发者需要两种驾驶模式：自由探索（free-play）+ 引导路径（walkthrough）；后者让场景每次运行一致，评审可复现",
+    "learn": "演示工具的两种交互模式：自由 + 引导；引导场景的价值在暴露「wait, that shouldn't be possible」时刻",
+    "action": "采纳", "detail": "LOGIC.md 核心变更——从开发者驱动 TUI 到非开发者驱动 demo"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 12",
+    "point": "场景选择指导：「Choose scenarios that demonstrate the awkward cases — the happy path, a tricky edge case, an attempt at something that should be illegal — the ones hard to reason about on paper」",
+    "impact": "无（指导性内容）", "why": "场景的价值在暴露想法缺陷，选纸上难推理的案例",
+    "learn": "演示场景的选择标准是「难在纸上推理的案例」，不是常见用例", "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 13",
+    "point": "删除 TUI keystroke 行为循环（init/read one keystroke/dispatch/re-render/loop），改为美学约束：「Keep it beautiful but restrained: clean typography, generous spacing, one accent colour. No animations, no gimmicks — nothing that competes with the state and the buttons」",
+    "impact": "与本地 frontend-design 理念一致（克制、单强调色）；蒸馏产物同步",
+    "why": "页面驱动无需 keystroke 循环；美学克制让状态与按钮不被装饰干扰",
+    "learn": "工具页面的美学原则：克制、一个强调色、无动画——b3oy1 的 tui-design 实践同精神",
+    "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 14",
+    "point": "交接章节前移为「### 4. Hand it over」",
+    "impact": "章节重排", "why": "流程顺序调整", "learn": "—", "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 15",
+    "point": "交接方式：「Send them the file, or open it for them. They'll click through the walkthroughs and free-play... the interesting moments are when they say wait, that shouldn't be possible or huh, I assumed X would be different — those are the bugs in the idea, which is the whole point. If they want new actions or a new scenario, add them. Prototypes evolve」",
+    "impact": "「bugs in the idea」概念与 b3oy1 原型哲学同源（throwaway 回答设计问题）；蒸馏产物同步",
+    "why": "原型的产出是发现想法本身的 bug，不是展示代码——把观察者的「咦」时刻定义为目标信号",
+    "learn": "交接时告诉观察者有趣时刻在哪（wait that shouldn't be possible），引导他们输出设计反馈而非客套",
+    "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 16",
+    "point": "捕获章节前移为「### 5. Capture the answer and the prototype」",
+    "impact": "章节重排", "why": "流程顺序调整", "learn": "—", "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 17",
+    "point": "捕获映射更新：「the TUI shell rides along to the throwaway branch」→「the HTML shell rides along to the throwaway branch that keeps the prototype as a primary source — and being one self-contained file, it stays trivially re-runnable there」",
+    "impact": "与 b3oy1 throwaway-worktree-convention 一致（原型入 throwaway 分支保留为 primary source）；单文件在分支上仍可重跑是附加优势",
+    "why": "单文件原型的附加优势：即便进了 throwaway 分支，依然双击可跑",
+    "learn": "「keep as primary source」的价值与形态相关：单文件原型的可重跑性让 primary source 名副其实", "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 18",
+    "point": "「Use an in-memory store」→「Use in-memory state」",
+    "impact": "无（措辞与无后端形态一致）", "why": "单文件页面无「store」概念，用 state 更贴切", "learn": "—", "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · LOGIC.md", "label": "变更 19",
+    "point": "don't 清单更新：「Don't blur the logic and the TUI together」→「Don't blur the logic and the page together」（纯模块引用 DOM/document/button handlers 即不可 lift）；新增「Don't reach for a framework, bundler, or server. One file the recipient double-clicks; a React app or a dev server defeats shareable」；「Don't ship the TUI shell into production」→「Don't ship the HTML shell into production. The page is optimised for being clicked through by hand. The logic module behind it is the bit worth keeping」",
+    "impact": "「外壳不进生产、逻辑模块值得保留」与 b3oy1 原型哲学一致；蒸馏产物同步",
+    "why": "约束随形态迁移完整重写，边界判定从 console 换为 DOM/框架",
+    "learn": "don't 清单要覆盖新形态的全部诱惑点（框架/打包器/服务器）——「shareable」目标的反例要显式列出", "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · SKILL.md", "label": "变更 1",
+    "summary": "LOGIC 分支路由描述同步单文件 HTML 形态",
+    "point": "LOGIC 分支描述更新：「Build a tiny interactive terminal app」→「Build a single shareable HTML file — free-play buttons plus tabbed guided walkthroughs — that pushes the state machine through cases... and that a non-developer can drive」",
+    "impact": "与 LOGIC.md 一致；蒸馏产物同步", "why": "SKILL.md 路由描述必须与 LOGIC.md 形态一致，否则路由引错",
+    "learn": "路由层（SKILL.md）与详情层（LOGIC.md）的形态描述要同步更新——分工文档的联动是本次蒸馏的检查点", "action": "采纳"
+  },
+  {
+    "file": "engineering/prototype · SKILL.md", "label": "变更 2",
+    "point": "规则 2 从「One command to run」改为「Trivial to run」：UI 原型一条命令（task runner），逻辑 demo 是单 HTML 双击打开——「Either way, no thinking required to start it」",
+    "impact": "规则语义扩展覆盖两种形态；b3oy1 原型实践无冲突，蒸馏产物同步",
+    "why": "单文件 HTML 没有命令可跑——「一条命令」规则失效，升华为「无需思考即可启动」的收益级表述",
+    "learn": "规则表述覆盖形态族而非单一形态：用收益定义规则（no thinking required）而非机制（one command）——b3oy1 写规则时的可借鉴写法", "action": "采纳"
+  },
+  {
+    "file": "engineering/setup-matt-pocock-skills · SKILL.md", "label": "变更 1",
+    "point": "Explainer 中 skill 列表从「to-tickets, triage, to-spec, and qa」改为「to-tickets, triage, and to-spec」——移除 qa 引用",
+    "impact": "b3oy1 蒸馏产物无 qa skill 引用，无悬空；蒸馏产物同步", "why": "上游 qa skill 已不存在，清理引用残留", "learn": "删除 skill 时要全局清理对它的引用（qa 残留说明上游也踩过此坑）", "action": "采纳"
+  },
+  {
+    "file": "engineering/setup-matt-pocock-skills · issue-tracker-github.md", "label": "变更 1",
+    "point": "「Issues and PRDs for this repo live as GitHub issues」→「Issues and specs」",
+    "impact": "b3oy1 使用 GitHub tracker，蒸馏产物同步；与本地 spec 口径一致", "why": "术语统一运动（PRD → spec）", "learn": "—", "action": "采纳"
+  },
+  {
+    "file": "engineering/setup-matt-pocock-skills · issue-tracker-gitlab.md", "label": "变更 1",
+    "point": "同 github.md：「Issues and PRDs」→「Issues and specs」",
+    "impact": "无（b3oy1 用 GitHub，此文件不参与本地产物但蒸馏同步）", "why": "术语统一", "learn": "—", "action": "采纳"
+  },
+  {
+    "file": "engineering/setup-matt-pocock-skills · issue-tracker-local.md", "label": "变更 1",
+    "point": "「Issues and specs (you may know a spec as a PRD) for this repo...」→「Issues and specs for this repo...」——删除 PRD 括注",
+    "impact": "无；蒸馏产物同步", "why": "术语统一收官：PRD 括注不再需要", "learn": "—", "action": "采纳"
+  },
+  {
+    "file": "engineering/tdd · SKILL.md", "label": "变更 1",
+    "point": "新增段落：当接口形状本身存疑（模块深度、seam 归属、接口暴露）时用 /codebase-design 获取词汇；它是 module/interface/depth/seam/adapter/leverage/locality 术语的共享源，「a reference to consult, not a session to run」",
+    "impact": "b3oy1 有 codebase-design 蒸馏产物；tdd 新增对它的引用——蒸馏产物同步即可；本地 tdd 实践无冲突",
+    "why": "tdd 常遇到「接口怎么切」的问题，codebase-design 提供共享词汇；明确区分 consult（参考）与 run（运行）避免把 reference 误当 session",
+    "learn": "skill 间引用要标明使用模式（consult vs run）——词汇工具与流程工具分开；b3oy1 的 skill 网络同样需要此类标注", "action": "采纳"
+  },
+  {
+    "file": "engineering/to-spec · SKILL.md", "label": "变更 1",
+    "point": "「produces a spec (you may know this document as a PRD)」→「produces a spec」——删除 PRD 括注",
+    "impact": "无；蒸馏产物同步", "why": "术语统一收官", "learn": "—", "action": "采纳"
+  },
+  {
+    "file": "engineering/triage · SKILL.md", "label": "变更 1",
+    "point": "grilling 协作描述从「one question at a time」改为「a round of questions at a time」",
+    "impact": "与 productivity/grilling 变更 2 的 rounds/frontier 模型配套；蒸馏产物同步",
+    "why": "grilling 交互模型从单问改为整 frontier 轮问（见 grilling 变更），triage 的引用描述同步",
+    "learn": "交互模型变更会传导到所有引用它的 skill——引用层描述要随模型更新", "action": "采纳"
+  },
+  {
+    "file": "engineering/wayfinder · SKILL.md", "label": "变更 1",
+    "summary": "markdown 斜体语法修复（* → _）+ Grilling 类型描述精简与强制化",
+    "point": "「by a bare id, number, or slug」句中的斜体语法从 `*...*` 改为 `_..._`",
+    "impact": "无（渲染语法修复）", "why": "斜体强调在部分 markdown 渲染器（粗体上下文中）可能渲染异常，下划线更稳",
+    "learn": "markdown 强调在复杂上下文用下划线更稳——纯排版修复也值得单独提交", "action": "采纳"
+  },
+  {
+    "file": "engineering/wayfinder · SKILL.md", "label": "变更 2",
+    "point": "HITL/AFK 段斜体同样从 `*...*` 改为 `_..._`",
+    "impact": "无", "why": "同变更 1", "learn": "—", "action": "采纳"
+  },
+  {
+    "file": "engineering/wayfinder · SKILL.md", "label": "变更 3",
+    "point": "Grilling 类型描述从「Conversation via the /grilling and /domain-modeling skills, one question at a time. The default case.」改为「Conversation. The default case. Always invoke the /grilling and /domain-modeling skills.」；Task 段斜体修复",
+    "impact": "wayfinder 对 grilling 的调用从描述变为强制指令（Always invoke）——b3oy1 wayfinder 蒸馏产物同步；与本地 wayfinder-no-encroachment 规则无冲突",
+    "why": "「Always invoke」把 grilling 从软约定提升为协议——ticket 类型与 skill 流程绑定，杜绝默认情况被跳过",
+    "learn": "文档中「默认怎么做」升级为「Always」时，是把软约定硬化为协议——措辞选择要匹配约束强度", "action": "采纳"
+  },
+  {
+    "file": "productivity/grilling · SKILL.md", "label": "变更 1",
+    "summary": "grilling 全面升级为 design tree + rounds/frontier 模型——问题格式化模板、事实委托子代理、决策权归用户、frontier 空即完成",
+    "point": "开场从「Interview me relentlessly about every aspect of this」改为「Interview the user relentlessly until you reach a shared understanding. Map this as a design tree: every decision branches into the decisions that hang off it」",
+    "impact": "b3oy1 的 grilling 蒸馏产物同步；与本地使用方式（wayfinder 内部、grill-with-docs）配套",
+    "why": "决策树模型显式化——每个决策展开其依赖的子决策，访谈有结构可循",
+    "learn": "访谈型 skill 的价值在结构：design tree 给「问什么、问完没有」以判定标准", "action": "采纳"
+  },
+  {
+    "file": "productivity/grilling · SKILL.md", "label": "变更 2",
+    "point": "单问等待改为 rounds 模式：「The frontier is every decision whose prerequisites are already settled — the questions you can ask now without guessing. Ask the whole frontier in one round: number each question and give your recommended answer. Then wait for the user's answers before the next round」",
+    "impact": "交互节奏从一问一答改为一轮多问——b3oy1 使用 grilling 的场景（规划、wayfinder 前期）会话节奏会变；蒸馏产物同步后需按新模型执行",
+    "why": "一次问整个 frontier 减少往返延迟；编号 + 推荐答案让用户批量高效决策，不用逐步等待",
+    "learn": "交互设计以「轮」为单位组织：问所有当前可答的问题，不阻塞于未决前置——b3oy1 的 AskUserQuestion 实践同此精神", "action": "采纳", "detail": "grilling 会话节奏从单问改为轮问，本地使用行为会变"
+  },
+  {
+    "file": "productivity/grilling · SKILL.md", "label": "变更 3",
+    "point": "新增问题格式化模板：「Each question should be formatted like so:」——❓ Q1 标题 + 正文（可多段、含多选项）+ ➡️ 推荐答案",
+    "impact": "输出格式统一——b3oy1 grilling 蒸馏产物按此格式呈现问题", "why": "统一格式让一轮多问可扫读、可编号应答",
+    "learn": "批量提问需要固定格式（编号 + 推荐答案行）才能高效应答", "action": "采纳"
+  },
+  {
+    "file": "productivity/grilling · SKILL.md", "label": "变更 4",
+    "point": "补充：模板完整示例；「A question whose answer depends on another question still open in this round belongs to a later round, not this one」；「Finding facts is your job, never the user's... dispatch a sub-agent to find it — don't ask the user for anything you could look up yourself. Don't block on it: a running exploration is an unsettled prerequisite, so only the questions downstream of it wait」；「The session is done when the frontier is empty: every branch of the design tree visited, nothing left silently assumed. Do not act on it until the user confirms you have reached a shared understanding」",
+    "impact": "事实/决策分工显式化（与 b3oy1 git-working-tree 规则「怀疑时查证而非问」同精神）；「frontier empty = 完成」给出可判定完成条件——与 b3oy1 conversation-style 的「可判定完成」原则一致；蒸馏产物同步",
+    "why": "完成条件显式化解决 grilling 何时结束的模糊；事实委托子代理避免阻塞且不浪费用户时间",
+    "learn": "流程 skill 要给出可判定的结束条件（frontier empty）并强制事实/决策分工（sub-agent 找事实、用户做决策）；b3oy1 规则写作可复用此结构", "action": "采纳"
+  }
+]
