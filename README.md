@@ -134,9 +134,9 @@ spin 是 fiber 的**外围支撑层**——不直接编码、不直接决策，�
 - **spin** = 支撑工具（提交、初始化、写作、侦查）
 - **wt** = 工作树机制（可选装，见下）
 
-spin 目前含 5 个 skill：`snap`（纯变更提交）让日常开发顺畅运转；
+spin 目前含 7 个 skill：`snap`（纯变更提交）与 `afk-implement`（批次围栏内 AFK 实现 + 交接报告）让日常开发顺畅运转；
 
-`setup-b3oy1`（本仓库 skill 栈初始化）、`setup-ship`（为消费项目生成 ship skill）负责初始化；`recon`（口头侦查报告）与 `edit-article`（本文档就是用它写的）辅助理解与写作。
+`suggest-tickets-bag`（to-tickets 后审视拆票、给出打包/单独走的建议）守在切批口；`setup-b3oy1`（本仓库 skill 栈初始化）、`setup-ship`（为消费项目生成 ship skill）负责初始化；`recon`（口头侦查报告）与 `edit-article`（本文档就是用它写的）辅助理解与写作。
 
 spin 不与 fiber 抢地盘：凡是「编排骨架 + 可复用纪律」归 fiber，凡是「让这套体系运转和维护的胶水」归 spin。
 
@@ -156,9 +156,9 @@ b3oy1/
 │   │   ├── .claude-plugin/{plugin.json, DISTILL.meta.json}
 │   │   ├── skills/                   # 每个 skill 一个目录
 │   │   └── reference/matt/LICENSE    # 上游 MIT 许可
-│   ├── spin/                         # 支撑工具，5 个 skill
+│   ├── spin/                         # 支撑工具，7 个 skill
 │   │   ├── .claude-plugin/plugin.json
-│   │   └── skills/                   # edit-article / recon / setup-b3oy1 / setup-ship / snap
+│   │   └── skills/                   # afk-implement / edit-article / recon / setup-b3oy1 / setup-ship / snap / suggest-tickets-bag
 │   └── wt/                           # 工作树机制（可选装），2 个 skill
 │       ├── .claude-plugin/plugin.json
 │       └── skills/                   # setup-wt / ops-wt
