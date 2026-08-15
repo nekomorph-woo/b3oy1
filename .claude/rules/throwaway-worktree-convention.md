@@ -22,6 +22,12 @@ The table answers only "which layer does my work belong to". When a destination 
 
 Every worktree — throwaway or destination — lives in **`.fiber/worktrees/<slug>/`** inside the repo, where `<slug>` is the branch or task name. This is the b3oy1 unified directory; worktrees never live outside it. The `.gitignore` excludes `.fiber/worktrees/`, so worktree directories never show up as untracked files in the main working tree. The routing table at `.fiber/worktrees.md` maps ticket → path → branch.
 
+## Viewing diffs in a worktree
+
+`.fiber/worktrees/` is gitignored, so IDEs that treat the repo root as the single project window mark every worktree under it as ignored and show no changes for it. A worktree is a self-contained git working tree: point a diff tool at `.fiber/worktrees/<slug>/` and diffs render normally, independent of the main tree's gitignore. The installed shell helper `wt` cds into a worktree and opens lazygit there:
+
+    wt <slug>
+
 ## The convention
 
 Rules for the **throwaway** layer. A throwaway's job is done once its decision is made; it must not leak into the destination.
