@@ -1,6 +1,6 @@
 ---
 name: setup-b3oy1
-description: Set up this repo for the b3oy1 skill stack — orchestrate the matt-pocock setup, then relocate the agent-skills index and install the b3oy1-specific rules (tracker body safety, wayfinder planning discipline, throwaway-worktree convention, conversation style). Run once before first use of the workflow skills.
+description: Set up this repo for the b3oy1 skill stack — orchestrate the matt-pocock setup, then relocate the agent-skills index and install the b3oy1-specific rules (tracker body safety, wayfinder planning discipline, conversation style). Worktree setup lives in the wt plugin (setup-wt), not here. Run once before first use of the workflow skills.
 disable-model-invocation: true
 ---
 
@@ -47,34 +47,21 @@ Completion: `.claude/rules/agent-skills.md` holds the full index; `CLAUDE.md` / 
 
 ### 3. Install the b3oy1 rules
 
-**Fill the conversation-style language placeholder first.** `b3oy1-conversation-style.md` carries a `{{USER_SPECIFIED_LANGUAGE}}` token. Ask the user which language the installed rule should use — plain text input, no multiple-choice options (e.g. `简体中文`, `English`, `日本語`). Substitute their answer verbatim for the token before copying the file to `.claude/rules/`. The other three templates have no placeholder.
+**Fill the conversation-style language placeholder first.** `b3oy1-conversation-style.md` carries a `{{USER_SPECIFIED_LANGUAGE}}` token. Ask the user which language the installed rule should use — plain text input, no multiple-choice options (e.g. `简体中文`, `English`, `日本語`). Substitute their answer verbatim for the token before copying the file to `.claude/rules/`. The other two templates have no placeholder.
 
-Then copy the four distributed-rule templates from this skill's `reference/` directory into the user project's `.claude/rules/`:
+Then copy the three distributed-rule templates from this skill's `reference/` directory into the user project's `.claude/rules/`:
 
 - **[tracker-index-edit.md](./reference/tracker-index-edit.md)** — the map / tracker-index body-safety rule. A `gh issue edit --body-file` on a stale snapshot destroys concurrent edits; this makes re-fetch-before-edit and surgical-edits-over-overwrite a distributed hard rule.
 - **[wayfinder-no-encroachment.md](./reference/wayfinder-no-encroachment.md)** — the "plan, don't do" seam: frontier / grilling / hand-off tickets hand off to the implementation workstream rather than writing destination code. A soft, attention-based constraint (independent file, repeated with the wayfinder skill body); a PreToolUse hook is the upgrade path if it fails.
-- **[throwaway-worktree-convention.md](./reference/throwaway-worktree-convention.md)** — the planning pair to no-encroachment: throwaway and destination work live in git worktrees in layers (throwaway forked from the current branch, never merged into main; destination via integration branch + PR), and carries the Claude Code worktree ban. Carries a `{{WORKTREE_DIFF_TOOL_BLOCK}}` placeholder (filled from the lazygit answer below); when the user opts in, the diff-viewing section lands in the installed rule.
 - **[b3oy1-conversation-style.md](./reference/b3oy1-conversation-style.md)** — the house style. Carries a `{{USER_SPECIFIED_LANGUAGE}}` placeholder (filled in step 3 from the user's answer); the rest: change summaries lead with a why-first verb (Added / Changed / Fixed / Removed); why-first, no-ceremony dialogue.
 
-**Ask about the worktree diff tool (lazygit).** The worktree home `.fiber/worktrees/` is gitignored (step 4), so IDEs that treat the repo root as the single project window show no changes for worktrees under it. A lightweight diff tool pointed at a worktree directory closes that gap. Ask the user — a yes/no question, alongside the language question — whether to install lazygit as that tool. Before asking, check whether lazygit is already installed (`command -v lazygit`); if it is, ask only about the shell helper + rule section, not the install. On yes:
+The worktree convention rule is **not** among them — it moved to the `wt` plugin's `setup-wt` skill. If the repo uses `.fiber/worktrees/`, the user runs that setup separately; this skill neither installs nor checks it.
 
-- **Install lazygit** (skip if already installed). macOS/Linux: `brew install lazygit` (if brew and the download stall on ghcr.io, retry with `HOMEBREW_BOTTLE_DOMAIN=https://mirrors.tuna.tsinghua.edu.cn/homebrew-bottles`); other package managers: scoop / winget on Windows, or the user's usual one. Verify with `lazygit --version`.
-- **Install the shell helper.** Append [worktree-helper.sh](./reference/worktree-helper.sh) (macOS/Linux: function `wt`, append to `~/.zshrc` or `~/.bashrc`) or [worktree-helper.ps1](./reference/worktree-helper.ps1) (Windows: function `wtx` — `wt` collides with Windows Terminal's `wt.exe`, append to PowerShell `$PROFILE`). Replace the `<repo-root>` token in the helper with the repo's absolute path before appending; if a previous `# b3oy1 worktree helper` block already exists in the rc, replace it instead of appending a second copy.
-- **Fill `{{WORKTREE_DIFF_TOOL_BLOCK}}`** in the throwaway-worktree-convention template: delete the placeholder line and keep the `## Viewing diffs in a worktree` section that follows it.
+The copy is **overwrite-as-update**: refresh the three b3oy1-namespaced files in `.claude/rules/` unconditionally — no diff check, no skip-if-exists, no ask. The template is the source of truth for these three files; nothing else in the target directory is touched. The placeholder flow above is orthogonal to the overwrite: asking the language and substituting `{{USER_SPECIFIED_LANGUAGE}}` runs every time, whether or not the target file already exists.
 
-On no (or if the user already uses another diff tool), delete the placeholder line **and** the whole `## Viewing diffs in a worktree` section — the section drops out of the installed rule entirely. The convention's gitignore behavior is unchanged either way.
+Completion: `.claude/rules/` carries all three — two verbatim, `b3oy1-conversation-style.md` with `{{USER_SPECIFIED_LANGUAGE}}` filled from the user's answer.
 
-The copy is **overwrite-as-update**: refresh the four b3oy1-namespaced files in `.claude/rules/` unconditionally — no diff check, no skip-if-exists, no ask. The template is the source of truth for these four files; nothing else in the target directory is touched. The placeholder flow above is orthogonal to the overwrite: asking the language and substituting `{{USER_SPECIFIED_LANGUAGE}}` runs every time, whether or not the target file already exists.
-
-Completion: `.claude/rules/` carries all four — three verbatim, `b3oy1-conversation-style.md` with `{{USER_SPECIFIED_LANGUAGE}}` filled from the user's answer, `throwaway-worktree-convention.md` with `{{WORKTREE_DIFF_TOOL_BLOCK}}` resolved (diff-viewing section in, or dropped).
-
-### 4. Exclude the worktree home in `.gitignore`
-
-The worktree convention lives at `.fiber/worktrees/` inside the repo; without a `.gitignore` entry, every worktree directory shows up as untracked in the main working tree. Ensure the exclude is present — **idempotently**: if `.gitignore` already carries `.fiber/worktrees/`, do nothing; otherwise append it. Do not touch any other line of the file.
-
-Completion: `.gitignore` carries a `.fiber/worktrees/` exclude; main `git status` stays clean with worktrees present.
-
-### 5. Inject sub-issue discipline into the issue tracker doc
+### 4. Inject sub-issue discipline into the issue tracker doc
 
 Open `.fiber/docs/agents/issue-tracker.md` (written in step 1) and ensure the sub-issue discipline is present. The base seed already describes three tiers; b3oy1 tightens the top tier.
 
@@ -86,14 +73,14 @@ Do **not** edit the fiber seed template (`plugins/fiber/skills/setup-matt-pocock
 
 Completion: `.fiber/docs/agents/issue-tracker.md` carries the sub-issue discipline; the fiber seed is untouched.
 
-### 6. Done
+### 5. Done
 
 Tell the user the stack is ready, and which skills consume each artifact:
 
 - `wayfinder`, `to-tickets`, `triage` → `.fiber/docs/agents/*.md`
-- all agent sessions → `.claude/rules/agent-skills.md` (index), `.claude/rules/tracker-index-edit.md` (body safety), `.claude/rules/wayfinder-no-encroachment.md` + `.claude/rules/throwaway-worktree-convention.md` (planning pair), `.claude/rules/b3oy1-conversation-style.md` (house style)
+- all agent sessions → `.claude/rules/agent-skills.md` (index), `.claude/rules/tracker-index-edit.md` (body safety), `.claude/rules/wayfinder-no-encroachment.md` (planning discipline), `.claude/rules/b3oy1-conversation-style.md` (house style)
 
-Mention they can edit any of these files directly later. Re-running this skill refreshes the four rule files from the templates (overwrite-as-update) and re-ensures the `.gitignore` exclude (idempotent; the shell-helper block in the rc is likewise replaced, not duplicated) — useful when the skill stack ships updated rules; it is also the path to switch trackers or restart from scratch.
+Mention they can edit any of these files directly later. Re-running this skill refreshes the three rule files from the templates (overwrite-as-update) — useful when the skill stack ships updated rules; it is also the path to switch trackers or restart from scratch.
 
 Completion: every artifact listed above exists; the user knows the consumption map.
 
@@ -102,3 +89,4 @@ Completion: every artifact listed above exists; the user knows the consumption m
 - **marketplace registration** — this skill is bundled with the `spin` plugin but is **not** registered in `marketplace.json`. Version bumps go through `/b3oy1-manage-version`.
 - **dogfood migration of this repo's own `CLAUDE.md` block** — separate task.
 - **editing fiber seed templates** — the deltas are orchestration overlays, never edits to `plugins/fiber/**`.
+- **worktree setup** — the `wt` plugin's `setup-wt` skill owns the worktree convention rule, the `.gitignore` exclude, and the lazygit diff helper.

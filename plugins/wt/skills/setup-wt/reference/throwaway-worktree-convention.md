@@ -12,7 +12,7 @@ The table is the anchor: it names every fiber-plugin skill, and the layer its ou
 |-------|--------|------------------------|
 | **throwaway** | `prototype`, `diagnosing-bugs`, `research` (when routed by wayfinder), wayfinder `task` tickets | a throwaway worktree on its own branch, never merged into main |
 | **destination** | `implement`, `tdd` | a destination worktree on its own feature branch; merged via PR (merge target is **not** main by default — ask the user or follow the branch the user explicitly names) |
-| **neutral** | `grilling`, `grill-me`, `grill-with-docs`, `domain-modeling`, `teach`, `ask-matt`, `writing-great-skills`, `wayfinder`, `codebase-design`, `to-spec`, `to-tickets`, `triage`, `code-review`, `resolving-merge-conflicts`, `improve-codebase-architecture`, `handoff`, `setup-matt-pocock-skills` | follow the current directory — these do not trigger a worktree choice |
+| **neutral** | `grilling`, `grill-me`, `grill-with-docs`, `domain-modeling`, `teach`, `ask-matt`, `writing-for-agents`, `wayfinder`, `codebase-design`, `to-spec`, `to-tickets`, `triage`, `code-review`, `resolving-merge-conflicts`, `improve-codebase-architecture`, `handoff`, `setup-matt-pocock-skills`, `to-questionnaire`, `wait-what`, `wizard` | follow the current directory — these do not trigger a worktree choice |
 
 `spin` as a plugin is neutral — its skills are not named here. Consumer repos' own skills fall outside the table: **ask the user** which layer they belong to.
 
@@ -20,7 +20,7 @@ The table answers only "which layer does my work belong to". When a destination 
 
 ## Where worktrees live
 
-Every worktree — throwaway or destination — lives in **`.fiber/worktrees/<slug>/`** inside the repo, where `<slug>` is the branch or task name. This is the b3oy1 unified directory; worktrees never live outside it. The `.gitignore` excludes `.fiber/worktrees/`, so worktree directories never show up as untracked files in the main working tree. The routing table at `.fiber/worktrees.md` maps ticket → path → branch.
+Every worktree — throwaway or destination — lives in **`.fiber/worktrees/<slug>/`** inside the repo, where `<slug>` is the branch or task name. This is the b3oy1 unified directory; worktrees never live outside it. The `.gitignore` excludes `.fiber/worktrees/`, so worktree directories never show up as untracked files in the main working tree. The routing table at `.fiber/worktrees.md` maps ticket → path → branch. The operational entry point for creating, listing, and cleaning worktrees is the `wt:ops-wt` skill.
 
 {{WORKTREE_DIFF_TOOL_BLOCK}}
 

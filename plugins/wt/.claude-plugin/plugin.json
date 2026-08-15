@@ -1,0 +1,5 @@
+{
+  "name": "wt",
+  "description": "Git worktree mechanics for the b3oy1 stack — the throwaway/destination layer convention, worktree home management, and the lazygit diff-viewing helper. Install when a repo uses .fiber/worktrees/; skip it for plain feature-branch repos.",
+  "version": "0.1.0"
+}

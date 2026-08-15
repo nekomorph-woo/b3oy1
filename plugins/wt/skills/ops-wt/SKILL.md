@@ -1,9 +1,9 @@
 ---
-name: worktrees
+name: ops-wt
 description: Manage git worktrees in the .fiber/worktrees/ home — create (git worktree add + register the routing table), list (read .fiber/worktrees.md), clean (deregister the row + git worktree remove). Use when a worktree needs creating for a ticket, locating an existing one, or removing after resolve / PR merge.
 ---
 
-# Worktrees
+# Ops wt
 
 Operational entry point for the worktree convention (`.claude/rules/throwaway-worktree-convention.md` — the rule file is the single source of truth; this skill executes it). Every worktree lives at `.fiber/worktrees/<slug>/` inside the repo, registered in `.fiber/worktrees.md`.
 

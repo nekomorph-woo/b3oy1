@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Decision-driven engineering skills and support tooling — lightweight, verifiable workflows.",
-    "version": "0.7.0"
+    "version": "0.8.0"
   },
   "plugins": [
     {
@@ -19,7 +19,13 @@
       "name": "spin",
       "source": "./plugins/spin",
       "description": "Standalone utilities and conveniences for Claude Code — the everyday skills the fiber workflow doesn't cover, installable alongside it.",
-      "version": "0.4.0"
+      "version": "0.5.0"
+    },
+    {
+      "name": "wt",
+      "source": "./plugins/wt",
+      "description": "Git worktree mechanics for the b3oy1 stack — the throwaway/destination layer convention, worktree home management, and the lazygit diff-viewing helper. Install when a repo uses .fiber/worktrees/; skip it for plain feature-branch repos.",
+      "version": "0.1.0"
     }
   ]
 }
