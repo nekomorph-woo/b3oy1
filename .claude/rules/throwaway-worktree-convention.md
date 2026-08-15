@@ -20,11 +20,11 @@ The table answers only "which layer does my work belong to". When a destination 
 
 ## Where worktrees live
 
-Every worktree — throwaway or destination — lives in **`.fiber/worktrees/<slug>/`** inside the repo, where `<slug>` is the branch or task name. This is the b3oy1 unified directory; worktrees never live outside it. The `.gitignore` excludes `.fiber/worktrees/`, so worktree directories never show up as untracked files in the main working tree. The routing table at `.fiber/worktrees.md` maps ticket → path → branch.
+Every worktree — throwaway or destination — lives in **`.fiber/worktrees/<slug>/`** inside the repo, where `<slug>` is the branch or task name. This is the b3oy1 unified directory; worktrees never live outside it. The `.gitignore` excludes `.fiber/worktrees/`, so worktree directories never show up as untracked files in the main working tree. The routing table at `.fiber/worktrees.md` maps ticket → path → branch. The operational entry point for creating, listing, and cleaning worktrees is the `wt:ops-wt` skill.
 
 ## Viewing diffs in a worktree
 
-`.fiber/worktrees/` is gitignored, so IDEs that treat the repo root as the single project window mark every worktree under it as ignored and show no changes for it. A worktree is a self-contained git working tree: point a diff tool at `.fiber/worktrees/<slug>/` and diffs render normally, independent of the main tree's gitignore. The installed shell helper `wt` cds into a worktree and opens lazygit there:
+`.fiber/worktrees/` is gitignored, so IDEs that treat the repo root as the single project window mark every worktree under it as ignored and show no changes for it. A worktree is a self-contained git working tree: point a diff tool at `.fiber/worktrees/<slug>/` and diffs render normally, independent of the main tree's gitignore. The installed shell helper `wt` (Windows: `wtx`) cds into a worktree and opens lazygit there:
 
     wt <slug>
 

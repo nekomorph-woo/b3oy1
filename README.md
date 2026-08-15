@@ -10,7 +10,7 @@
 
 ### 1. 这是什么
 
-一个 Claude Code 插件市集，内含两个插件：**fiber**（22 个工程 skill）和 **spin**（外围支撑工具）。
+一个 Claude Code 插件市集，内含三个插件：**fiber**（25 个工程 skill）、**spin**（外围支撑工具）和 **wt**（可选的工作树机制）。
 
 核心主张：AI 编码的失败，根因不是模型不够强，而是**错位、冗长、不工作、泥潭化**这四个工程问题没被纪律化地解决。fiber 把这些纪律打包成 skill，让你在真实工程里反复使用，而不是 vibe coding。
 
@@ -131,13 +131,18 @@ spin 是 fiber 的**外围支撑层**——不直接编码、不直接决策，�
 边界很清晰：
 
 - **fiber** = 工程纪律（grill / spec / tickets / TDD / review / domain）
-- **spin** = 支撑工具（提交、初始化、工作树、写作、侦查）
+- **spin** = 支撑工具（提交、初始化、写作、侦查）
+- **wt** = 工作树机制（可选装，见下）
 
-spin 目前含 6 个 skill：`snap`（纯变更提交）与 `worktrees`（工作树创建与清理）让日常开发顺畅运转；
+spin 目前含 5 个 skill：`snap`（纯变更提交）让日常开发顺畅运转；
 
 `setup-b3oy1`（本仓库 skill 栈初始化）、`setup-ship`（为消费项目生成 ship skill）负责初始化；`recon`（口头侦查报告）与 `edit-article`（本文档就是用它写的）辅助理解与写作。
 
 spin 不与 fiber 抢地盘：凡是「编排骨架 + 可复用纪律」归 fiber，凡是「让这套体系运转和维护的胶水」归 spin。
+
+### 5a. wt：工作树机制（可选）
+
+不是每个项目都需要 worktree——有的项目就是拉一个 feature 分支直接开发。wt plugin 把 worktree 相关的全部内容（throwaway/destination 分层约定、`.fiber/worktrees/` 家目录管理、lazygit diff 查看）收敛成一个可整体跳过的单元：用它就装 + 跑 `wt:setup-wt`，不用就不装。含 2 个 skill：`setup-wt`（装约定 rule + gitignore 排除 + 可选 lazygit 助手）与 `ops-wt`（worktree 创建 / 路由 / 清理）。fiber 工作流本身不依赖 worktree，跳过 wt 不影响 wayfinder / prototype / implement / tdd。
 
 ## 三、结构与维护
 
@@ -145,15 +150,18 @@ spin 不与 fiber 抢地盘：凡是「编排骨架 + 可复用纪律」归 fibe
 
 ```
 b3oy1/
-├── .claude-plugin/marketplace.json   # 市集清单（fiber + spin）
+├── .claude-plugin/marketplace.json   # 市集清单（fiber + spin + wt）
 ├── plugins/
-│   ├── fiber/                        # 22 个 matt 蒸馏 skill
+│   ├── fiber/                        # 25 个 matt 蒸馏 skill
 │   │   ├── .claude-plugin/{plugin.json, DISTILL.meta.json}
 │   │   ├── skills/                   # 每个 skill 一个目录
 │   │   └── reference/matt/LICENSE    # 上游 MIT 许可
-│   └── spin/                         # 支撑工具，6 个 skill
+│   ├── spin/                         # 支撑工具，5 个 skill
+│   │   ├── .claude-plugin/plugin.json
+│   │   └── skills/                   # edit-article / recon / setup-b3oy1 / setup-ship / snap
+│   └── wt/                           # 工作树机制（可选装），2 个 skill
 │       ├── .claude-plugin/plugin.json
-│       └── skills/                   # edit-article / recon / setup-b3oy1 / setup-ship / snap / worktrees
+│       └── skills/                   # setup-wt / ops-wt
 └── scripts/
     ├── distill.py                    # 跟上游重新蒸馏
     └── test_distill.py               # 蒸馏逻辑测试
@@ -167,6 +175,7 @@ b3oy1/
 claude plugin marketplace add nekomorph-woo/b3oy1   # 或本地路径
 claude plugin install fiber@b3oy1
 claude plugin install spin@b3oy1
+claude plugin install wt@b3oy1                       # 可选：仅用 worktree 的项目装
 ```
 
 首次使用 fiber 工程类 skill 前，跑一次 `/setup-matt-pocock-skills` 生成 `.fiber/docs/agents/*.md`。
@@ -180,7 +189,7 @@ python3 scripts/distill.py
 蒸馏是 **config 驱动 + 全局路径前缀替换**，幂等可复跑（`scripts/test_distill.py` 守护关键逻辑）：
 
 - 只改 `setup` skill 本体 + 2 个 seed template 的路径（→ `.fiber/`）
-- 其余 21 个 skill 的 `.md` 原样拷贝，文件名全保留
+- 其余 24 个 skill 的 `.md` 原样拷贝，文件名全保留
 - 白名单 bucket：`engineering` / `productivity`（matt 新增目录默认不取）
 - skill 灵魂不动，只做机械安全的路径替换：正文连续路径走字面量前缀替换；ASCII 目录树走路径重写（展平节点路径 → 应用前缀规则 → 重建树）
 - 树重写的规则设计见 `.fiber/docs/adr/0001-distill-tree-rewrite.md`
@@ -189,7 +198,7 @@ python3 scripts/distill.py
 
 ### 8. 致谢
 
-fiber 的 22 个工程 skill 蒸馏自 [mattpocock/skills](https://github.com/mattpocock/skills)（MIT），skill 的灵魂、四问题叙事、分类原则全部归属 Matt Pocock。spin 的 `edit-article` 同样来自 matt。
+fiber 的 25 个工程 skill 蒸馏自 [mattpocock/skills](https://github.com/mattpocock/skills)（MIT），skill 的灵魂、四问题叙事、分类原则全部归属 Matt Pocock。spin 的 `edit-article` 同样来自 matt。
 
 （其源在 matt 的 personal bucket。）本仓库自己做的是：收敛到统一 `.fiber/` 命名空间、setup 入口意图驱动、配上 spin 支撑层。
 

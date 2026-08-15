@@ -5,7 +5,7 @@
 ## Rule
 
 **分布式规则**:
-随 `setup-b3oy1` 下发、对每个采用 b3oy1 栈的 repo 都生效的 rule。英文撰写，跨 repo 通用。
+随 skill 栈的 setup 流程（`setup-b3oy1`，worktree 约定则经 `wt:setup-wt`）下发、对每个采用 b3oy1 栈的 repo 都生效的 rule。英文撰写，跨 repo 通用。
 _避免_: 模板规则、默认规则、共享规则
 
 **本 repo 专属规则**:
