@@ -1,6 +1,7 @@
 ---
 name: afk-implement
-description: Run one implementation batch while the user is away, inside explicit fences, and end with a structured handoff report. Use when the user announces they are going AFK for implementation — the fences and the closing report are what keep "away" from becoming "lost".
+description: Run one implementation batch while the user is away, inside explicit fences, and end with a structured handoff report. User-invoked — the user announces an AFK batch; the model never starts one on its own. The fences and the closing report are what keep "away" from becoming "lost".
+disable-model-invocation: true
 ---
 
 # AFK implement
@@ -38,7 +39,9 @@ The report is the up-gate of the batch; **a batch without its report is incomple
 4. **New fog** — where implementation contradicted spec assumptions. These flow back into the MAP's *Not yet specified* section: the MAP stays open as the cockpit during implementation — Decisions are the settled direction, *Not yet specified* is the radar, reflowed tickets are the live traffic.
 5. **Slicing suggestions for uncut tickets** — "having built this batch, ticket #NN's slice should be cut differently". This is the input `suggest-tickets-bag` feeds on next round; it comes from real code, which is why it is the orchestration layer's most valuable input.
 
-Completion: all five sections are written and delivered to the console.
+**Persist the report, don't just print it.** The console copy is for the session; the report itself must survive it. Post the full report as a **comment on the MAP issue** (on GitHub: `gh issue comment`; with a local tracker: append to the map's own doc under a dated heading). The MAP **body** stays untouched — it is the cockpit index, not the store; comments are append-only, timestamped per batch, and safe from concurrent edits. Section 4 (new fog) still flows surgically into the body's *Not yet specified*; change-ticket drafts live in the comment until approved, then graduate to real issues.
+
+Completion: all five sections are written, delivered to the console, and persisted as a comment on the MAP.
 
 ### 4. Suggest and stop
 
