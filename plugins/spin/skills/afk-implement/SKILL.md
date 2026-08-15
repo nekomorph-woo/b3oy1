@@ -31,17 +31,18 @@ Completion: every ticket in the bag is either done (tests green, acceptance crit
 
 ### 3. The batch report — the batch is not done without it
 
-The report is the up-gate of the batch; **a batch without its report is incomplete**, no exceptions. Five sections, in this order:
+The report is the up-gate of the batch; **a batch without its report is incomplete**, no exceptions. Six sections, in this order:
 
-1. **Per-ticket summary** — what was done and the key tradeoff, 2–3 lines each. Not a diff. Module-internal tickets whose acceptance names no other ticket or module get one line each — the report's body is reserved for what the user must see.
+1. **Per-ticket acceptance reconciliation** — for every ticket, each acceptance criterion with its **verification handle** (the test that covers it, the command that was run, the artifact it produced), then a 2–3 line summary of what was done and the key tradeoff. Not a diff. The handles turn review into spot-checking: the user verifies evidence exists and samples it, rather than re-reading code. Module-internal tickets whose acceptance names no other ticket or module get one line each.
 2. **Frozen-layer reconciliation** — did this batch touch vocabulary / contracts / state machines / interface shape? Untouched → one line saying so. Touched → red-line event, flagged at the top, the user intervenes.
-3. **Change-ticket drafts** — every hit wall, with the old ticket it links and the assumption that no longer holds. Awaiting user approval.
-4. **New fog** — where implementation contradicted spec assumptions. These flow back into the MAP's *Not yet specified* section: the MAP stays open as the cockpit during implementation — Decisions are the settled direction, *Not yet specified* is the radar, reflowed tickets are the live traffic.
-5. **Slicing suggestions for uncut tickets** — "having built this batch, ticket #NN's slice should be cut differently". This is the input `suggest-tickets-bag` feeds on next round; it comes from real code, which is why it is the orchestration layer's most valuable input.
+3. **Human-review queue** — logic this batch produced that deserves the user's personal eyes beyond the evidence handles: important to the product, technically complex, or business-complex. Each entry: what it does, where it lives (`file:line`), and which flag raised it (importance / technical complexity / business complexity). Untouched → one line saying so. Layer rules (core / core-extension get human review) say who reviews *by default*; this queue names the *specific spots* this batch produced — surface code can earn a place in it too.
+4. **Change-ticket drafts** — every hit wall, with the old ticket it links and the assumption that no longer holds. Awaiting user approval.
+5. **New fog** — where implementation contradicted spec assumptions. These flow back into the MAP's *Not yet specified* section: the MAP stays open as the cockpit during implementation — Decisions are the settled direction, *Not yet specified* is the radar, reflowed tickets are the live traffic.
+6. **Slicing suggestions for uncut tickets** — "having built this batch, ticket #NN's slice should be cut differently". This is the input `suggest-tickets-bag` feeds on next round; it comes from real code, which is why it is the orchestration layer's most valuable input.
 
-**Persist the report, don't just print it.** The console copy is for the session; the report itself must survive it. Post the full report as a **comment on the MAP issue** (on GitHub: `gh issue comment`; with a local tracker: append to the map's own doc under a dated heading). The MAP **body** stays untouched — it is the cockpit index, not the store; comments are append-only, timestamped per batch, and safe from concurrent edits. Section 4 (new fog) still flows surgically into the body's *Not yet specified*; change-ticket drafts live in the comment until approved, then graduate to real issues.
+**Persist the report, don't just print it.** The console copy is for the session; the report itself must survive it. Post the full report as a **comment on the MAP issue** (on GitHub: `gh issue comment`; with a local tracker: append to the map's own doc under a dated heading). The MAP **body** stays untouched — it is the cockpit index, not the store; comments are append-only, timestamped per batch, and safe from concurrent edits. Section 5 (new fog) still flows surgically into the body's *Not yet specified*; change-ticket drafts live in the comment until approved, then graduate to real issues.
 
-Completion: all five sections are written, delivered to the console, and persisted as a comment on the MAP.
+Completion: all six sections are written, delivered to the console, and persisted as a comment on the MAP.
 
 ### 4. Suggest and stop
 

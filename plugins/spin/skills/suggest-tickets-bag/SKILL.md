@@ -1,6 +1,6 @@
 ---
 name: suggest-tickets-bag
-description: After to-tickets slices a spec into tickets, review the fresh batch and suggest how they group into implementation bags — with the reason stated for every bag AND for every ticket kept standalone. Invoked by the model right after a to-tickets run; output goes to the console for the user to judge.
+description: After to-tickets slices a spec into tickets, restate every ticket in one plain-language line (what user-visible behavior it builds, which spec section it maps to), then suggest how they group into implementation bags — with the reason stated for every bag AND for every ticket kept standalone. Invoked by the model right after a to-tickets run; output goes to the console for the user to judge.
 ---
 
 # Suggest tickets bag
@@ -17,7 +17,22 @@ Collect the tickets `to-tickets` just created — titles, acceptance criteria, a
 
 Completion: every ticket from the run is in hand, with its acceptance criteria read.
 
-### 2. Propose bags
+### 2. Restate each ticket in plain language
+
+Ticket wording straight out of `to-tickets` is often opaque — the user scans the batch and cannot tell what each ticket actually builds. For every ticket, write one plain-language line:
+
+> **#NN** — builds: <the user-visible behavior, in one sentence> · spec: <which section it implements>
+
+Two hard flags:
+
+- **Unrestatable** — the behavior cannot be said in one plain sentence; the ticket is probably fused or vague. Recommend a re-slice.
+- **Untraceable** — no spec section backs it. Recommend re-slicing or dropping, never silent implementation.
+
+This manifest doubles as the reconciliation baseline: when `afk-implement` later reports per-ticket acceptance, it checks against these restated promises — the before-list of plain-language commitments the after-report answers to.
+
+Completion: every ticket carries its one-line restatement with a spec anchor, or is flagged as unrestatable / untraceable.
+
+### 3. Propose bags
 
 Partition the batch into bags. A bag is a set of tickets the AI can implement in one batch without losing the thread. Typical bag glue:
 
@@ -26,7 +41,7 @@ Partition the batch into bags. A bag is a set of tickets the AI can implement in
 - one vertical slice — the tickets only make sense together;
 - total size fits one AFK batch (aim for 3–8 tickets per bag).
 
-### 3. State the reason for every bag — and for every standalone
+### 4. State the reason for every bag — and for every standalone
 
 Both directions are mandatory. A suggestion without its reason is noise the user has to reconstruct:
 
@@ -39,8 +54,8 @@ Both directions are mandatory. A suggestion without its reason is noise the user
 
 Completion: every ticket belongs to exactly one bag or one standalone entry, and every entry — bag or standalone — carries its one-line reason.
 
-### 4. Output to console, then stop
+### 5. Output to console, then stop
 
-Print the suggestion to the console: each bag with its tickets and reason, each standalone with its reason. The user merges, splits, or confirms — **never apply the grouping yourself**. Ticket bodies stay untouched: this skill reads tickets, it does not edit them.
+Print the suggestion to the console: the plain-language manifest (step 2, flags included), then each bag with its tickets and reason, each standalone with its reason. The user merges, splits, or confirms — **never apply the grouping yourself**. Ticket bodies stay untouched: this skill reads tickets, it does not edit them.
 
 Completion: the suggestion is printed; control returns to the user. The next move (usually `afk-implement` on a confirmed bag) is suggested, not started.
