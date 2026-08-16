@@ -136,7 +136,7 @@ spin 是 fiber 的**外围支撑层**——不直接编码、不直接决策，�
 
 spin 目前含 7 个 skill：`snap`（纯变更提交）与 `afk-implement`（批次围栏内 AFK 实现 + 交接报告）让日常开发顺畅运转；
 
-`suggest-tickets-bag`（to-tickets 后审视拆票、给出打包/单独走的建议）守在切批口；`setup-b3oy1`（本仓库 skill 栈初始化）、`setup-ship`（为消费项目生成 ship skill）负责初始化；`recon`（口头侦查报告）与 `edit-article`（本文档就是用它写的）辅助理解与写作。
+`suggest-tickets-bag`（to-tickets 后人话复述每张票 + 分袋建议——袋是合并提案，确认即并成单一工单）守在切批口；`setup-b3oy1`（本仓库 skill 栈初始化）、`setup-ship`（为消费项目生成 ship skill）负责初始化；`recon`（口头侦查报告）与 `edit-article`（本文档就是用它写的）辅助理解与写作。
 
 spin 不与 fiber 抢地盘：凡是「编排骨架 + 可复用纪律」归 fiber，凡是「让这套体系运转和维护的胶水」归 spin。
 

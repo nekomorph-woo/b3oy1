@@ -1,11 +1,13 @@
 ---
 name: suggest-tickets-bag
-description: After to-tickets slices a spec into tickets, restate every ticket in one plain-language line (what user-visible behavior it builds, which spec section it maps to), then suggest how they group into implementation bags — with the reason stated for every bag AND for every ticket kept standalone. Invoked by the model right after a to-tickets run; output goes to the console for the user to judge.
+description: After to-tickets slices a spec into tickets, restate every ticket in one plain-language line (what user-visible behavior it builds, which spec section it maps to), then suggest how they group into implementation bags. A bag is a merge proposal — a confirmed bag becomes ONE work order (one AFK batch, one report), not N tickets wearing a label. Reason stated for every bag AND every ticket kept standalone. Invoked by the model right after a to-tickets run; output goes to the console for the user to judge.
 ---
 
 # Suggest tickets bag
 
-Review the tickets that `to-tickets` just created, and suggest how they group into **bags** — units the AI can implement in one AFK batch (see `afk-implement`).
+Review the tickets that `to-tickets` just created, and suggest how they group into **bags** — and a bag is a **merge proposal**, not a grouping view.
+
+A confirmed bag becomes **one work order**: one AFK batch, one report, one review (see `afk-implement`). Its member tickets stop being individually tracked deliverables and become the bag's internal steps. The test of a useful suggestion: it changes how many things get created, tracked, and reviewed. Thirty thin tickets becoming five work orders is the win; thirty tickets wearing five labels is decoration. If the next step you propose is still "create the tickets as sliced", the bagging failed.
 
 The skill exists because over-sliced tickets are the fuel for reviewer fatigue: thirty thin tickets reviewed one by one drain the human far faster than five well-shaped bags. Grouping happens **before** the fatigue, at slice time, when merging is still free.
 
@@ -41,6 +43,8 @@ Partition the batch into bags. A bag is a set of tickets the AI can implement in
 - one vertical slice — the tickets only make sense together;
 - total size fits one AFK batch (aim for 3–8 tickets per bag).
 
+Slicing granularity is itself on the table: a bag may propose merging tickets that share a seam or whose acceptance criteria overlap — the bag's acceptance is the **union** of its members', its plain-language line unions their restatements. Treat the incoming slice as raw material, not a fixed partition.
+
 ### 4. State the reason for every bag — and for every standalone
 
 Both directions are mandatory. A suggestion without its reason is noise the user has to reconstruct:
@@ -58,4 +62,6 @@ Completion: every ticket belongs to exactly one bag or one standalone entry, and
 
 Print the suggestion to the console: the plain-language manifest (step 2, flags included), then each bag with its tickets and reason, each standalone with its reason. The user merges, splits, or confirms — **never apply the grouping yourself**. Ticket bodies stay untouched: this skill reads tickets, it does not edit them.
 
-Completion: the suggestion is printed; control returns to the user. The next move (usually `afk-implement` on a confirmed bag) is suggested, not started.
+**Suggest the next move in bag terms.** For each confirmed bag: merge it into one work order on the tracker — one ticket whose acceptance unions its members', the rest closed as merged (or one bag label, where the tracker makes merging awkward) — then hand that bag to `afk-implement`. Recommending "create the tickets as sliced", at the original to-tickets count, discards the suggestion this skill just made. And the confirmation must land on the tracker, not just this console: a later `afk-implement` session finds its bag there.
+
+Completion: the suggestion is printed; control returns to the user. The next move is suggested in bag terms, not started.
