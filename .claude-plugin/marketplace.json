@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Decision-driven engineering skills and support tooling — lightweight, verifiable workflows.",
-    "version": "0.14.0"
+    "version": "0.15.0"
   },
   "plugins": [
     {
@@ -19,7 +19,7 @@
       "name": "spin",
       "source": "./plugins/spin",
       "description": "Standalone utilities and conveniences for Claude Code — the everyday skills the fiber workflow doesn't cover, installable alongside it.",
-      "version": "0.11.0"
+      "version": "0.12.0"
     },
     {
       "name": "wt",

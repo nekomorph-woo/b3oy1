@@ -11,11 +11,13 @@ Snap serves any project. It detects the commit language from the repo's own hist
 
 ## Process
 
-### 1. Read the staged diff
+### 1. Read the staged diff, recall the intent
 
-Run `git diff --cached --stat` and `git diff --cached`. From the result pick a **type** and a **scope**.
+Run `git diff --cached --stat` and `git diff --cached`. From the diff pick a **type** and a **scope**; from the conversation recall **why the change exists** — the task behind it, in one sentence.
 
-Completion: every staged file maps to one type and one scope.
+The two sources have different jobs: the diff says *what moved* and keeps the message honest; the conversation says *what it was for* and gives the description its words. A change whose intent cannot be traced in the conversation falls to technical phrasing (step 3).
+
+Completion: every staged file maps to one type and one scope, and the change's purpose is at hand in one sentence.
 
 ### 2. Detect the commit language
 
@@ -34,9 +36,12 @@ Format:
     <type>(<scope>): <description>
 
 - `description` in the detected language, single line, imperative.
-- States the behavior that changed, not the files touched.
+- **Altitude ladder — start at the top, drop only when forced:**
+  - **Business altitude (default).** Say what the product or system can now do, or what problem no longer exists: what a user notices, which workflow changed, what got fixed for them. The reader should understand the commit without knowing any file name.
+  - **Technical fallback.** Only when the change has no business face at all — pure refactor, deps bump, CI, tooling — state the technical fact plainly instead.
+- **One line, one idea.** Never enumerate code points: a description listing functions, fields, or files means the altitude is wrong — climb back up until the scattered items collapse into one purpose.
 
-Completion: one line says what behavior changed.
+Completion: one line names the capability gained or the problem closed — or, when none exists, the single technical fact.
 
 ### 4. Link issues already in context
 
