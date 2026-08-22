@@ -1,5 +1,5 @@
 {
   "name": "spin",
   "description": "Standalone utilities and conveniences for Claude Code — the everyday skills the fiber workflow doesn't cover, installable alongside it.",
-  "version": "0.10.1"
+  "version": "0.11.0"
 }
