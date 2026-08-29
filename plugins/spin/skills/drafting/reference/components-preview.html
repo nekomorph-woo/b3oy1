@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drafting Table · Token 组件预览</title>
+<style>
+/* Hallmark · bespoke · component sheet · theme: vellum-drafting(tokens.css) ·
+   静态组件样张:换 token 即换肤,本页是 tokens 的视觉验收单 */
+:root{
+  --paper:oklch(95.5% .028 95); --paper-2:oklch(92.5% .032 93); --panel:oklch(98% .014 95);
+  --ink:oklch(27% .025 80); --ink-2:oklch(47% .03 85); --hair:oklch(83% .03 90); --grid:oklch(90.5% .025 95);
+  --accent:oklch(45% .13 265);
+  --lc-p:oklch(70% .025 260); --lc-d:oklch(52% .10 260); --lc-k:oklch(48% .10 300);
+  --lc-e:oklch(50% .10 165); --lc-c:oklch(62% .12 70);
+  --f0:oklch(46% .13 265); --f1:oklch(46% .10 148); --f2:oklch(60% .13 60); --f3:oklch(48% .11 305);
+  --serif:Georgia,"Times New Roman","Songti SC",serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"PingFang SC",monospace;
+  --sans:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --r-s:3px; --r-m:5px;
+}
+*{box-sizing:border-box}
+html,body{overflow-x:clip}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:13px;line-height:1.55;
+  background-image:repeating-linear-gradient(0deg,transparent 0 23px,var(--grid) 23px 24px),
+   repeating-linear-gradient(90deg,transparent 0 23px,var(--grid) 23px 24px)}
+main{max-width:1180px;margin:0 auto;padding:26px 22px 90px}
+header h1{font-family:var(--serif);font-size:26px;margin:0;font-style:normal}
+header .sub{font-family:var(--mono);font-size:11px;color:var(--ink-2);letter-spacing:.06em;margin-top:2px}
+h2{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--ink-2);
+  border-bottom:1px solid var(--hair);padding-bottom:6px;margin:34px 0 14px;font-weight:400}
+.sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px}
+.sw figure{margin:0;background:var(--panel);border:1px solid var(--hair);border-radius:var(--r-m);overflow:hidden}
+.sw .chip{height:44px;border-bottom:1px solid var(--hair)}
+.sw figcaption{padding:6px 9px;font-family:var(--mono);font-size:10px;color:var(--ink-2)}
+.sw figcaption b{display:block;color:var(--ink);font-size:11px}
+.type p{margin:6px 0}
+.type .brand{font-family:var(--serif);font-size:24px}
+.type .mono{font-family:var(--mono);font-size:12px}
+.row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+/* 节点卡片 */
+.node{width:190px;background:var(--panel);border:1px solid var(--ink-2);border-radius:var(--r-m);
+  overflow:hidden;box-shadow:0 1px 2px oklch(0% 0 0 / .10)}
+.node.child{width:170px;border-style:dashed}
+.node .hd{display:flex;align-items:baseline;gap:6px;padding:3px 9px;font-weight:600;font-size:12px;color:#fff}
+.node.lc-p .hd{background:var(--lc-p);color:var(--ink)}
+.node.lc-d .hd{background:var(--lc-d)} .node.lc-k .hd{background:var(--lc-k)}
+.node.lc-e .hd{background:var(--lc-e)} .node.lc-c .hd{background:var(--lc-c)}
+.node .hd .nid{font-family:var(--mono);font-size:10px;font-weight:400;opacity:.85}
+.node.sel{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent)}
+.node.dim{opacity:.32}
+.node .bd{padding:5px 9px 6px}
+.node .duty{font-size:10.5px;color:var(--ink-2);line-height:1.4}
+.node .plist{margin-top:4px;border-top:1px solid var(--hair);padding-top:3px}
+.node .pr{font-family:var(--mono);font-size:9.5px;color:var(--ink-2);display:flex;gap:5px;line-height:1.5;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node .pr .d{width:10px;flex:none}
+.node .pr.out .d{color:var(--accent)}
+.node .nx{display:inline-block;margin-top:3px;font-family:var(--mono);font-size:9.5px;border:1px solid var(--hair);
+  background:var(--paper-2);color:var(--ink-2);border-radius:var(--r-s);padding:0 6px}
+.cell{display:flex;flex-direction:column;gap:5px}
+.cell small{font-family:var(--mono);font-size:9.5px;color:var(--ink-2);letter-spacing:.1em}
+/* 区域 */
+.region{position:relative;max-width:520px;border-radius:6px;border:1px solid hsl(160 50% 42% / .38);
+  background:hsl(160 50% 42% / .05);padding:34px 14px 14px}
+.region .rl{position:absolute;top:0;left:0;font-family:var(--mono);font-size:10px;letter-spacing:.22em;
+  padding:2px 10px;border-radius:6px 0 6px 0;background:hsl(160 50% 42% / .10);color:hsl(160 50% 42% / .85)}
+.region .rl i{font-style:normal;letter-spacing:.08em;opacity:.8}
+/* 线与端口 */
+svg.wires{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r-m)}
+.wire{fill:none}
+.chev{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.lab{font-family:var(--mono);font-size:10px;fill:var(--ink-2)}
+/* chrome */
+.legend{display:inline-flex;flex-direction:column;gap:3px;background:var(--panel);border:1px solid var(--hair);
+  border-radius:var(--r-m);padding:8px 12px;font-size:11px}
+.legend .fl{display:flex;gap:6px;align-items:center}
+.legend .sw2{width:18px;border-top:2.5px solid;flex:none}
+.legend .sw2.depsw{border-top-style:dashed}
+.status{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--ink-2);
+  background:var(--paper);padding:4px 10px}
+.btn{border:1px solid var(--hair);background:var(--panel);color:var(--ink);border-radius:var(--r-s);
+  cursor:pointer;font-family:var(--mono);font-size:12px;min-width:34px;height:30px;padding:0 12px}
+.btn:hover{border-color:var(--ink-2)}
+.inp{width:250px;padding:6px 10px;border:1px solid var(--hair);border-radius:var(--r-s);font-family:var(--mono);
+  font-size:12px;background:var(--panel);color:var(--ink)}
+/* dossier 段落 */
+.dossier{width:320px;background:var(--panel);border:1px solid var(--hair);border-radius:var(--r-m);padding:14px}
+.dossier .did{font-family:var(--mono);font-size:12px;color:var(--accent)}
+.dossier h3{font-family:var(--serif);font-size:18px;margin:2px 0;font-style:normal}
+.dossier dt{font-family:var(--mono);font-size:10px;letter-spacing:.15em;color:var(--ink-2);margin-top:11px}
+.dossier dd{margin:2px 0 0;font-size:12.5px}
+.dossier .tags{display:flex;gap:5px;margin-top:4px}
+.dossier .tag{font-family:var(--mono);font-size:10px;border:1px solid var(--hair);border-radius:var(--r-s);
+  padding:0 8px;color:var(--ink-2)}
+footer{margin-top:40px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--ink-2)}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>Drafting Table</h1>
+  <div class="sub">TOKEN 组件样张 · vellum-drafting · 换 token 即换肤,本页是 tokens.css 的视觉验收单</div>
+</header>
+
+<section>
+  <h2>01 · 色板 COLOR</h2>
+  <div class="sw">
+    <figure><div class="chip" style="background:var(--paper)"></div><figcaption><b>--paper</b>oklch(95.5% .028 95) 画布底</figcaption></figure>
+    <figure><div class="chip" style="background:var(--paper-2)"></div><figcaption><b>--paper-2</b>oklch(92.5% .032 93) 次级面</figcaption></figure>
+    <figure><div class="chip" style="background:var(--panel)"></div><figcaption><b>--panel</b>oklch(98% .014 95) 卡片浮面</figcaption></figure>
+    <figure><div class="chip" style="background:var(--ink)"></div><figcaption><b>--ink</b>oklch(27% .025 80) 主墨</figcaption></figure>
+    <figure><div class="chip" style="background:var(--ink-2)"></div><figcaption><b>--ink-2</b>oklch(47% .03 85) 次级墨</figcaption></figure>
+    <figure><div class="chip" style="background:var(--hair)"></div><figcaption><b>--hair</b>oklch(83% .03 90) 发丝线</figcaption></figure>
+    <figure><div class="chip" style="background:var(--accent)"></div><figcaption><b>--accent</b>oklch(45% .13 265) 制图蓝</figcaption></figure>
+    <figure><div class="chip" style="background:var(--f1)"></div><figcaption><b>--f1</b>oklch(46% .10 148) 链路·绿</figcaption></figure>
+    <figure><div class="chip" style="background:var(--f2)"></div><figcaption><b>--f2</b>oklch(60% .13 60) 链路·琥珀</figcaption></figure>
+    <figure><div class="chip" style="background:var(--f3)"></div><figcaption><b>--f3</b>oklch(48% .11 305) 链路·紫</figcaption></figure>
+  </div>
+</section>
+
+<section>
+  <h2>02 · 字体 TYPE</h2>
+  <div class="type">
+    <p class="brand">Drafting Table — serif 只做品牌题字</p>
+    <p class="mono">#no.12 · [L] 图例 · 36 块 · 47 线 · 缩放 62% —— 等宽承担全部仪表 chrome</p>
+    <p>无衬线只做正文阅读:职责描述、规格页正文。一个字体越界,器物感就散。</p>
+  </div>
+</section>
+
+<section>
+  <h2>03 · 节点卡片 NODE CARDS</h2>
+  <div class="row">
+    <div class="cell"><small>DEFAULT · 层色标题条</small>
+      <div class="node lc-d"><div class="hd"><span class="nid">#no.5</span><span class="nm">全局配置 + 默认注入</span></div>
+        <div class="bd"><div class="duty">读写 config.json;未显式给 --provider 时注入默认值到 argv 最前</div></div></div></div>
+    <div class="cell"><small>SELECTED · 制图蓝描边</small>
+      <div class="node lc-e sel"><div class="hd"><span class="nid">#no.19</span><span class="nm">hpl-safety-gate</span></div>
+        <div class="bd"><div class="duty">拦 bash 工具调用:归一化 → 三段正则 → block/confirm/allow</div>
+        <span class="nx">下钻 3</span></div></div></div>
+    <div class="cell"><small>DIM · 非聚焦压暗</small>
+      <div class="node lc-e dim"><div class="hd"><span class="nid">#no.28</span><span class="nm">hpl-footer</span></div>
+        <div class="bd"><div class="duty">全量接管状态栏 3 行;纯渲染</div></div></div></div>
+    <div class="cell"><small>HUB · 接线清单(240px)</small>
+      <div class="node lc-c" style="width:240px"><div class="hd"><span class="nid">#no.22</span><span class="nm">ExtensionAPI 插座面</span></div>
+        <div class="bd"><div class="duty">内核暴露给扩展的全部插座</div>
+          <div class="plist">
+            <div class="ph" style="font-family:var(--mono);font-size:8.5px;letter-spacing:.18em;color:var(--ink-2);margin-bottom:2px">连线 · 4</div>
+            <div class="pr"><span class="d" style="flex:none;font-size:8.5px;line-height:1;padding:2px 5px;border:1px solid var(--hair);border-radius:4px;background:var(--paper-2);color:var(--ink-2)">in</span>#11 Pi 内核 0.84.1</div>
+            <div class="pr"><span class="d" style="flex:none;font-size:8.5px;line-height:1;padding:2px 5px;border:1px solid var(--hair);border-radius:4px;background:var(--paper-2);color:var(--ink-2)">in</span>#19 hpl-safety-gate</div>
+            <div class="pr out"><span class="d" style="flex:none;font-size:8.5px;line-height:1;padding:2px 5px;border:1px solid oklch(45% .13 265 / .35);border-radius:4px;background:oklch(45% .13 265 / .07);color:var(--accent)">out</span>#25 hpl-add-dir</div>
+          </div></div></div></div>
+    <div class="cell"><small>CHILD · 子块(170px 虚线)</small>
+      <div class="node child lc-e"><div class="hd"><span class="nid">#no.32</span><span class="nm">三段规则链</span></div>
+        <div class="bd"><div class="duty">SHELL_INJECTION→block;BLOCK 16 组;CONFIRM ~30 组</div></div></div></div>
+    <div class="cell"><small>STAMP · 认知状态章(A4)</small>
+      <div class="node lc-e" style="position:relative"><span style="position:absolute;top:2px;right:3px;z-index:2;font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;line-height:1.4;padding:1px 5px;border-radius:2px;background:var(--panel);transform:rotate(-5deg);color:var(--accent);border:1.5px solid var(--accent)">● 走查</span>
+        <div class="hd"><span class="nid">#no.23</span><span class="nm">hpl-system-prompt</span><span style="margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--f2)">?</span></div>
+        <div class="bd"><div class="duty">○ 未走 ◐ 读过(虚线) ● 走查(蓝描边) ◆ 实跑(蓝底)</div></div></div></div>
+  </div>
+</section>
+
+<section>
+  <h2>04 · 区域容器 REGION</h2>
+  <div class="region">
+    <span class="rl">插座面与扩展 <i>(optional · pluggable · 9)</i></span>
+    <div class="duty" style="font-size:10.5px;color:var(--ink-2)">彩色文字标注 + 角色注记,像图纸注释;容器着色 5%,边框同色 38%。</div>
+  </div>
+</section>
+
+<section>
+  <h2>05 · 线与端口 WIRES / PORTS</h2>
+  <svg class="wires" width="640" height="150" viewBox="0 0 640 150">
+    <path class="wire" d="M30,40 C120,40 200,110 300,110" stroke="var(--f0)" stroke-width="2.2"/>
+    <path class="chev" d="M-5,-4 L3,0 L-5,4" stroke="var(--f0)" stroke-width="2.4" transform="translate(120,60) rotate(22)"/>
+    <path d="M300,110 l-10,-5 l0,10 z" fill="var(--f0)"/>
+    <text class="lab" x="312" y="114">flow · 箭头常驻 · 雪佛龙行进(动态见原型)</text>
+    <path class="wire" d="M30,80 C150,80 260,42 400,42" stroke="var(--ink-2)" stroke-width="1.4" stroke-dasharray="5 4" opacity=".55"/>
+    <path d="M400,42 l-9,-4.5 l0,9 z" fill="var(--ink-2)" opacity=".5"/>
+    <text class="lab" x="412" y="46">dep · 灰虚线 · 淡箭头指向被依赖方</text>
+    <path class="wire" d="M120,130 L260,130" stroke="var(--ink-2)" stroke-width="1.4" stroke-dasharray="4 4" opacity=".5"/>
+    <text class="lab" x="270" y="134">child · 包含,无箭头</text>
+    <circle cx="30" cy="40" r="4" fill="var(--paper)" stroke="var(--f0)" stroke-width="1.5"/>
+    <circle cx="300" cy="110" r="4.2" fill="var(--f0)" stroke="var(--f0)"/>
+    <text class="lab" x="18" y="26">出端口空心 / 入端口实心</text>
+  </svg>
+</section>
+
+<section>
+  <h2>06 · 仪表 CHROME</h2>
+  <div class="row">
+    <div class="legend">
+      <div class="fl"><span class="sw2" style="border-color:var(--f0)"></span>冷启动</div>
+      <div class="fl"><span class="sw2" style="border-color:var(--f2)"></span>工具拦截</div>
+      <div class="fl off" style="opacity:.35;text-decoration:line-through"><span class="sw2 depsw" style="border-color:var(--ink-2)"></span>依赖线</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;gap:8px"><input class="inp" placeholder="搜索 #id / 名称 / 职责…"><button class="btn">✦</button><button class="btn">⛶</button></div>
+      <span class="status">36 块 · 47 线 · 4 链路 · 缩放 62% · 数据 2026-08-29 · 役毕即弃</span>
+    </div>
+    <dl class="dossier">
+      <div class="did">#no.19</div><h3>hpl-safety-gate</h3>
+      <dt>DUTY</dt><dd>拦 bash 工具调用:归一化 → 三段正则 → block/confirm/allow</dd>
+      <dt>MUST-NOT-KNOW</dt><dd>路径语义(#20 的事);信任判定委托 #21</dd>
+      <dt>可信标注</dt><dd style="font-family:var(--mono);font-size:11px;color:var(--ink-2)">hpl-safety-gate/index.ts:25-80</dd>
+      <dt>TAGS</dt><dd class="tags"><span class="tag">扩展</span><span class="tag">tool_call</span></dd>
+    </dl>
+  </div>
+</section>
+
+<footer>DRAFTING TABLE · TOKEN SHEET · 值为目测换算近似,权威定义在 tokens.css</footer>
+</main>
+</body>
+</html>

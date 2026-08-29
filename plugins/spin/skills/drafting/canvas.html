@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>图纸桌 — 模板</title>
+<style>
+/* Drafting Table · single-file campaign map — template (skill: spin/drafting).
+   Everything you edit lives in the DATA ZONE of the <script> below; machinery
+   under the MACHINERY marker is domain-blind — leave it untouched.
+   Walk states persist in localStorage under META.key. Disposable by design:
+   redraw freely, distill invariants into durable docs at end of life. */
+:root{
+  --paper:oklch(95.5% .028 95); --paper-2:oklch(92.5% .032 93); --panel:oklch(98% .014 95);
+  --ink:oklch(27% .025 80); --ink-2:oklch(47% .03 85); --hair:oklch(83% .03 90); --grid:oklch(90.5% .025 95);
+  --accent:oklch(47% .13 255);
+  --lc-p:oklch(70% .025 260); --lc-d:oklch(52% .10 260); --lc-k:oklch(48% .10 300);
+  --lc-e:oklch(50% .10 165); --lc-c:oklch(62% .12 70);
+  --f0:oklch(46% .13 265); --f1:oklch(46% .10 148); --f2:oklch(60% .13 60); --f3:oklch(48% .11 305);
+  --sans:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --serif:Georgia,"Times New Roman","Songti SC",serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --sp1:4px;--sp2:8px;--sp3:12px;
+  --ease:cubic-bezier(.2,.7,.3,1);
+}
+*{box-sizing:border-box}
+html,body{overflow:clip}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:13px;line-height:1.5}
+#stage{position:fixed;inset:0;
+  background:
+   repeating-linear-gradient(0deg,transparent 0 23px,var(--grid) 23px 24px),
+   repeating-linear-gradient(90deg,transparent 0 23px,var(--grid) 23px 24px);
+  cursor:grab;touch-action:none}
+#stage.dragging{cursor:grabbing}
+#world{position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0}
+/* no will-change here: it keeps the world on a stale GPU raster and text goes soft after zoom */
+#wires,#ports{position:absolute;left:0;top:0;overflow:visible}
+#ports{pointer-events:none}
+#nodes{position:absolute;left:0;top:0}
+.region{position:absolute;border-radius:6px;pointer-events:none;border:1px solid;overflow:visible}
+.region .rl{position:absolute;top:0;left:0;font-family:var(--mono);font-size:10px;letter-spacing:.22em;
+  padding:2px 10px;border-radius:6px 0 6px 0;color:var(--ink-2)}
+.region .rl i{font-style:normal;letter-spacing:.08em;opacity:.8}
+.node{position:absolute;width:190px;background:var(--panel);border:1px solid var(--ink-2);border-radius:5px;
+  overflow:hidden;cursor:pointer;user-select:none;box-shadow:0 1px 2px oklch(0% 0 0 / .10)}
+.node.child{width:170px}
+.node:hover{border-color:var(--accent)}
+.node.sel{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent)}
+.node.dim{opacity:.2}
+.node .hd{display:flex;align-items:baseline;gap:6px;padding:3px 9px;font-weight:600;font-size:12px;color:#fff}
+.node.lc-p .hd{background:var(--lc-p);color:var(--ink)}
+.node.lc-d .hd{background:var(--lc-d)} .node.lc-k .hd{background:var(--lc-k)}
+.node.lc-e .hd{background:var(--lc-e)} .node.lc-c .hd{background:var(--lc-c)}
+.node .hd .nid{font-family:var(--mono);font-size:10px;font-weight:400;opacity:.85}
+.node .nm{overflow-wrap:anywhere}
+.node .bd{padding:5px 9px 6px}
+.node .duty{font-size:10.5px;color:var(--ink-2);line-height:1.4}
+.node .plist{margin-top:4px;border-top:1px solid var(--hair);padding-top:3px}
+.node .pr{font-family:var(--mono);font-size:9.5px;color:var(--ink-2);display:flex;gap:5px;line-height:1.5;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node .pr .d{flex:none;min-width:22px;text-align:center;font-size:8.5px;line-height:1;padding:2px 5px;border:1px solid var(--hair);
+  border-radius:4px;background:var(--paper-2);color:var(--ink-2)}
+.node .pr.out .d{color:var(--accent);border-color:oklch(45% .13 265 / .35);background:oklch(45% .13 265 / .07)}
+.node .ph{font-family:var(--mono);font-size:8.5px;letter-spacing:.18em;color:var(--ink-2);margin-bottom:2px}
+.node .pr.out .d{color:var(--accent)}
+/* Walk-state stamp: what the map says ≠ what was verified — stamped on the corner, never hidden at far zoom */
+.node .stmp{position:absolute;top:2px;right:3px;z-index:2;font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;
+  line-height:1.4;padding:1px 5px;border-radius:2px;background:var(--panel);transform:rotate(-5deg)}
+.node .stmp.st-r{color:var(--ink-2);border:1px dashed var(--ink-2)}
+.node .stmp.st-w{color:var(--accent);border:1.5px solid var(--accent)}
+.node .stmp.st-o{color:#fff;background:var(--accent);border:1.5px solid var(--accent)}
+.node .fg{margin-left:auto;flex:none;font-family:var(--mono);font-size:10px;color:var(--f2)}
+.node.child{border-style:dashed}
+/* far-mode declutter fades instead of display:none — a hard toggle strobes every card when zooming across the threshold.
+   Ghost mode while the wheel is active: mid-zoom text is stale raster anyway, so dim it and restore once, sharp, on settle. */
+.node .duty,.node .plist{transition:opacity .18s var(--ease)}
+#world.far .duty,#world.far .plist{opacity:0;pointer-events:none}
+#world.zooming .duty,#world.zooming .plist{opacity:.12}
+/* large glyphs snap loudest on re-raster — headers, labels, stamps ghost too */
+#world.zooming .nm,#world.zooming .rl,#world.zooming .stmp,#world.zooming .nx{opacity:.15}
+/* non-scaling-stroke forces per-frame stroke recompute on every wire; let strokes ride the transform while zooming */
+#world.zooming .wire{vector-effect:none}
+.nx{display:inline-block;margin-top:3px;font-family:var(--mono);font-size:9.5px;border:1px solid var(--hair);
+  background:var(--paper-2);color:var(--ink-2);border-radius:2px;padding:0 6px;cursor:pointer}
+.nx:hover{border-color:var(--accent);color:var(--accent)}
+.nx[aria-expanded="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.wire{fill:none;transition:opacity .12s var(--ease)}
+.chev{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.wire.hit{stroke:transparent;stroke-width:14px;pointer-events:stroke;cursor:pointer}
+.arr{transition:opacity .12s var(--ease)}
+.port{stroke-width:1.5}
+#hud{position:fixed;top:0;left:0;right:0;display:flex;gap:var(--sp2);align-items:center;
+  padding:var(--sp2) var(--sp3);pointer-events:none;z-index:10}
+#hud>*{pointer-events:auto}
+.card{background:var(--panel);border:1px solid var(--hair);border-radius:3px}
+#title{padding:var(--sp1) var(--sp3);font-family:var(--serif);font-size:15px}
+#title small{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--ink-2)}
+#q{width:250px;padding:6px 10px;border:1px solid var(--hair);border-radius:3px;font-family:var(--mono);
+  font-size:12px;background:var(--panel);color:var(--ink)}
+#q:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#hits{position:fixed;top:52px;left:var(--sp3);max-width:300px;max-height:300px;overflow:auto;z-index:30}
+#hits div{padding:5px 10px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--hair)}
+#hits div:hover{background:var(--paper-2)}
+#zoom{position:fixed;left:var(--sp3);bottom:var(--sp3);display:flex;gap:var(--sp1);z-index:10}
+#zoom button{min-width:34px;height:30px;font-family:var(--mono);font-size:13px}
+button{border:1px solid var(--hair);background:var(--panel);color:var(--ink);border-radius:3px;cursor:pointer}
+button:hover{border-color:var(--ink-2)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+/* two legend boxes: business wires (left) vs system state (right) — different data, different homes */
+#chains,#state{position:fixed;padding:var(--sp2) var(--sp3);font-size:11px;z-index:10}
+#chains{left:var(--sp3);bottom:58px}
+#state{right:var(--sp3);bottom:var(--sp3);max-width:270px}
+.lt{font-family:var(--mono);font-size:8.5px;letter-spacing:.18em;color:var(--ink-2);margin-bottom:4px}
+#chains .fl{display:flex;gap:6px;align-items:center;cursor:pointer;padding:2px 4px;border-radius:2px;user-select:none}
+#chains .fl:hover{background:var(--paper-2)}
+#chains .fl.off{opacity:.35;text-decoration:line-through}
+#chains .sw,#state .sw{width:18px;border-top:2.5px solid;flex:none}
+#chains .sw.depsw{border-top-style:dashed}
+#state .lays{display:flex;gap:7px;flex-wrap:wrap;color:var(--ink-2)}
+#state .lays i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:3px;vertical-align:-1px}
+#state .strow{margin-top:5px}
+#state .tip{margin-top:3px;color:var(--ink-2);font-size:10.5px}
+#state .lt{display:flex;justify-content:space-between;align-items:center}
+#helpbtn{font-family:var(--mono);font-size:10px;line-height:1;padding:2px 7px;border-radius:2px}
+#help{margin-top:6px;border-top:1px solid var(--hair);padding-top:5px}
+#detail{position:fixed;top:0;right:0;bottom:0;width:340px;background:var(--panel);border-left:1px solid var(--hair);
+  transform:translateX(100%);transition:transform .18s var(--ease);overflow:auto;padding:16px;z-index:20}
+#detail.open{transform:none}
+#detail .close{position:absolute;top:10px;right:10px;width:26px;height:26px}
+#detail .did{font-family:var(--mono);font-size:12px;color:var(--accent)}
+#detail h2{font-family:var(--serif);font-size:19px;margin:2px 0;font-style:normal}
+#detail .lay{font-size:10.5px;padding:1px 7px;border:1px solid var(--hair);border-radius:2px;color:var(--ink-2)}
+#detail dl{margin:12px 0 0;font-size:12.5px}
+#detail dt{font-family:var(--mono);font-size:10px;letter-spacing:.15em;color:var(--ink-2);margin-top:12px}
+#detail dd{margin:2px 0 0;overflow-wrap:anywhere}
+#detail .note{margin-top:12px;padding:7px 10px;background:var(--paper-2);border-left:3px solid var(--lc-c);font-size:12px}
+#detail .nflag{font-family:var(--mono);font-size:10px;color:var(--f2);letter-spacing:.08em}
+#detail .stw{display:flex;gap:5px;margin-top:12px}
+#detail .stw button{font-family:var(--mono);font-size:10.5px;padding:3px 9px;border-radius:2px}
+#detail .stw button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+#detail .dps{font-family:var(--mono);font-size:11px;color:var(--ink-2);line-height:1.8}
+#detail .dps .tg{display:inline-block;font-size:9px;border:1px solid var(--hair);border-radius:2px;padding:0 4px;margin:0 4px;color:var(--ink-2)}
+#detail .files{font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+#detail a{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--hair);cursor:pointer}
+footer{position:fixed;bottom:var(--sp3);left:50%;transform:translateX(-50%);font-family:var(--mono);
+  font-size:10px;letter-spacing:.12em;color:var(--ink-2);pointer-events:none;background:var(--paper);padding:0 8px}
+@media (prefers-reduced-motion:reduce){
+  #detail{transition:none}.wire{transition:none}
+  .node .duty,.node .plist{transition:none}
+}
+</style>
+</head>
+<body>
+<div id="stage"><div id="world">
+  <svg id="wires"></svg>
+  <div id="nodes"></div>
+  <svg id="ports"></svg>
+</div></div>
+
+<div id="hud">
+  <div id="title" class="card">图纸桌 <small>单文件战役地图 · [L] 图例 · [F] 搜索</small></div>
+  <input id="q" placeholder="搜索 #id / 名称 / 职责,回车定位…" aria-label="搜索块">
+</div>
+<div id="hits" class="card" hidden></div>
+<div id="zoom" class="card">
+  <button id="zi" title="放大">+</button><button id="zo" title="缩小">−</button>
+  <button id="zt" title="自动整理:回到授权摆位">✦</button><button id="zf" title="适配">⛶</button>
+</div>
+<div id="chains" class="card">
+  <div class="lt">链路</div>
+  <div id="flrows"></div>
+  <div class="fl" id="depfl"><span class="sw depsw"></span>依赖线</div>
+</div>
+<div id="state" class="card">
+  <div class="lt">状态<button id="helpbtn" title="操作说明">? 操作</button></div>
+  <div class="lays" id="layrows"></div>
+  <div class="lays strow"><span>○ 未走</span><span>◐ 读过</span><span>● 走查</span><span>◆ 实跑</span></div>
+  <div id="help" hidden>
+    <div class="tip">滚轮缩放</div>
+    <div class="tip">拖空白平移</div>
+    <div class="tip">拖卡片移动(子块跟随)</div>
+    <div class="tip">悬停链路线 = 点亮整条链</div>
+    <div class="tip">点卡片 = 聚焦,点空白 = 取消聚焦</div>
+    <div class="tip">✦ 一键整理(回到授权摆位)</div>
+    <div class="tip">悬停灰色依赖线 = 显示依赖来源</div>
+    <div class="tip">走查状态在详情页标记</div>
+  </div>
+</div>
+<aside id="detail" aria-label="块详情"></aside>
+<footer id="status"></footer>
+
+<script>
+/* ================= DATA ZONE — the only part you edit =================
+   Draw the map by replacing the consts below. Machinery under the MACHINERY
+   marker is domain-blind: leave it untouched.
+
+   META       key   unique short slug — names the localStorage walk-state store
+              map   map name (title bar + browser tab)
+              date  date the survey was drawn, YYYY-MM-DD
+   LAYER_DEFS       this project's real strata → color slots lc-p/d/k/e/c.
+                    Rename/re-slice to fit THIS project; never reuse another
+                    project's strata — identical legends across projects mean
+                    template-filling, not reading.
+   DOMAIN_DEFS  name    region label — the axis is domain/behavior, never the file tree
+                role    drawing-annotation role note, e.g. "core · runtime"
+                tint    "H S% L%" hsl string for the region wash
+                x/y/w/h region box
+                blocks[]  id       global #no.N — a communication symbol for human
+                                   and AI sessions; stable within the campaign
+                          lc       layer color slot (see LAYER_DEFS)
+                          layer    layer name shown in the dossier
+                          name     title;  duty  one line — what it does
+                          know / unknow   knowledge boundaries (load-bearing blocks)
+                          data     what flows through (types / payloads)
+                          ports    what it plugs into (events / sockets / commands)
+                          note     a judgment worth remembering — flag it:
+                                   "?" unverified · "!" contradiction · "△" fragile
+                          files    file:line evidence — EVERY block carries at least one
+                          children inner structure; drill only for REAL inner semantics
+                          x/y      card position (✦ tidies back to these)
+   FLOW_DEFS  n  chain name — a runtime behaviour backbone, named by the survey
+              e  edge pairs [from,to];  f  color index 0-3
+   DEPS       [a,b,tag,note?] static dependency; tag ∈ call|data|reg|order|infer.
+              Provenance decides blast radius — type every grey wire.
+   ==================== MACHINERY — domain-blind ==================== */
+const NS="http://www.w3.org/2000/svg";
+const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const META={key:"demo",map:"example system",date:"2026-08-29"};
+const LAYER_DEFS=[
+ {k:"p",name:"parent"},{k:"d",name:"domain"},{k:"k",name:"kernel"},
+ {k:"e",name:"extension"},{k:"c",name:"channel"},
+];
+const DOMAIN_DEFS=[
+{name:"CLI shell",role:"entry · spawn",tint:"225 45% 55%",x:40,y:70,w:560,h:330,blocks:[
+ {id:1,lc:"p",layer:"parent",name:"CLI facade",duty:"takes argv: intercepts --help, routes subcommands, passes the rest through",know:"argv, the command registry",unknow:"how searchd works inside",data:"process.argv → args",files:["src/cli.ts:10-31"],x:80,y:140},
+ {id:2,lc:"p",layer:"parent",name:"Command registry",duty:"static COMMANDS table driving routing and --help; handlers lazy-import",data:"CommandDef",files:["src/commands.ts:36-127"],x:330,y:140},
+ {id:3,lc:"d",layer:"domain",name:"Service locator",duty:"resolves the searchd endpoint by convention; falls back to localhost",note:"socket discovery is convention-based — unverified against deploy docs.",flag:"?",data:"endpoint url",files:["src/locate.ts:5-28"],x:80,y:300},
+ {id:4,lc:"d",layer:"domain",name:"Config loader",duty:"reads config.json, merges defaults, hands the spawn its env",data:"Config → env",files:["src/config.ts:15-64"],x:330,y:300},
+]},
+{name:"searchd",role:"core · runtime",tint:"285 40% 55%",x:640,y:70,w:560,h:470,blocks:[
+ {id:5,lc:"k",layer:"kernel",name:"searchd kernel",duty:"query loop, ranking, segment merges; owns the wire protocol",know:"the wire protocol",unknow:"who feeds it or asks it — only sockets",note:"single writer: every ingest funnels through the watcher channel.",data:"Query → Hits",ports:"tcp socket; plugin hooks",files:["src/searchd/main.rs:40-120"],x:680,y:140,w:260,
+  children:[
+   {id:10,layer:"kernel",name:"Tokenizer",duty:"unicode segmentation + normalizer chain; language packs optional",files:["src/searchd/tokenize.rs:12-58"]},
+   {id:11,layer:"kernel",name:"Ranker",duty:"BM25 base + recency boost; weights from config",files:["src/searchd/rank.rs:20-77"]},
+  ]},
+ {id:6,lc:"k",layer:"kernel",name:"Query planner",duty:"rewrites queries into segment plans; picks cached or cold path",data:"Query → Plan",files:["src/searchd/plan.rs:8-64"],x:680,y:330},
+ {id:7,lc:"k",layer:"kernel",name:"Index store",duty:"segment files on disk, mmap reads; compaction in background",data:"Plan → Hits",files:["src/searchd/store.rs:30-140"],x:950,y:330},
+ {id:9,lc:"e",layer:"extension",name:"Audit sink",duty:"subscribes to query_done, appends JSONL audit lines",note:"only extension in the hot path — latency budget unknown.",flag:"?",ports:"query_done hook",files:["plugins/audit/index.js:1-40"],x:950,y:140},
+]},
+{name:"watcher",role:"sidecar · channel",tint:"35 70% 50%",x:1240,y:70,w:300,h:180,blocks:[
+ {id:8,lc:"c",layer:"channel",name:"fs watcher channel",duty:"watches content dirs, batches events, streams them to searchd",data:"fs events → ingest",ports:"searchd ingest socket",files:["src/watcher.ts:20-95"],x:1265,y:140},
+]},
+];
+const FLOW_DEFS=[
+ {n:"boot",f:0,e:[[1,3],[3,4],[4,5]]},
+ {n:"query",f:1,e:[[3,5],[5,6],[6,7]]},
+ {n:"ingest",f:2,e:[[8,5],[5,7]]},
+];
+const TAGZH={call:"调用",data:"数据",reg:"注册",order:"顺序",infer:"推断"};
+const DEPS=[[2,1,"data","registry read by the router"],[7,6,"data","planner reads store stats"],
+ [9,5,"reg","subscribes to query_done"],[3,8,"infer","watcher socket assumed alive"]];
+/* ==================== MACHINERY ==================== */
+const byId={},nodes=[],edges=[],regions=[];
+const NW=190,CHD=56,GAP=15,CW=170;
+const nodesLayer=document.getElementById("nodes"),wiresSvg=document.getElementById("wires"),
+      portsSvg=document.getElementById("ports"),world=document.getElementById("world"),stage=document.getElementById("stage"),
+      statusEl=document.getElementById("status");
+document.title="图纸桌 — "+META.map;
+function regBlock(b,parent){
+  byId[b.id]=b;if(parent){b.parent=parent}
+  nodes.push(b);
+}
+DOMAIN_DEFS.forEach(d=>{
+  const r=document.createElement("div");r.className="region";
+  const hue=d.tint;
+  r.style.cssText=`left:${d.x}px;top:${d.y}px;width:${d.w}px;height:${d.h}px;`+
+    `border-color:hsl(${hue} / .38);background:hsl(${hue} / .045)`;
+  r.innerHTML=`<span class="rl" style="background:hsl(${hue} / .10);color:hsl(${hue} / .85)">${esc(d.name)} <i>(${esc(d.role||"·")} · ${d.blocks.length})</i></span>`;
+  d.el=r;nodesLayer.appendChild(r);
+  d.blocks.forEach(b=>{regBlock(b);(b.children||[]).forEach(c=>regBlock(c,b))});
+  regions.push(d);
+});
+FLOW_DEFS.forEach(fd=>fd.e.forEach(([a,b])=>edges.push({a,b,kind:"flow",f:fd.f})));
+DEPS.forEach(([a,b,tag,lab])=>edges.push({a,b,kind:"dep",tag,lab}));
+/* ---- Walk states: ○ unread · ◐ read · ● walked · ◆ observed; localStorage lives with the campaign ---- */
+const WKEY="drafting-"+META.key,STZH={r:"◐ 读过",w:"● 走查",o:"◆ 实跑"};
+let _saved={};try{_saved=JSON.parse(localStorage.getItem(WKEY)||"{}")}catch(_){}
+nodes.forEach(b=>{if(_saved[b.id])b.st=_saved[b.id]});
+function saveWalk(){const m={};nodes.forEach(b=>{if(b.st)m[b.id]=b.st});
+  try{localStorage.setItem(WKEY,JSON.stringify(m))}catch(_){}}
+function applyStamp(b){if(!b.el)return;
+  const old=b.el.querySelector(".stmp");if(old)old.remove();
+  if(!b.st)return;
+  const s=document.createElement("span");s.className="stmp st-"+b.st;
+  s.textContent=STZH[b.st];b.el.appendChild(s)}
+function setState(b,st){b.st=st;saveWalk();applyStamp(b);updateStatus();
+  if(sel===b)renderSt(b)}
+/* ---- Render nodes: hubs (≥5 wires) grow a connection list wired row-to-port ---- */
+function edgeColor(e){return e.kind==="flow"?`var(--f${e.f})`:"var(--ink-2)"}
+function nodeEl(b){
+  const el=document.createElement("div");
+  el.className="node lc-"+(b.lc||"e")+(b.parent?" child":"");
+  el.dataset.id=b.id;el.dataset.s=(b.name+b.duty+(b.know||"")+(b.data||"")+(b.files||[]).join(" ")).toLowerCase();
+  const ins=edges.filter(e=>e.b===b.id&&e.kind!=="child");
+  const outs=edges.filter(e=>e.a===b.id&&e.kind!=="child");
+  const big=ins.length+outs.length>=5;
+  if(big)el.style.width="240px";
+  let plist="";
+  if(big){
+    plist=`<div class="plist"><div class="ph">连线 · ${ins.length+outs.length}</div>`+
+      ins.map(e=>`<div class="pr"><span class="d">in</span>#${e.a} ${esc(byId[e.a].name)}</div>`).join("")+
+      outs.map(e=>`<div class="pr out"><span class="d">out</span>#${e.b} ${esc(byId[e.b].name)}</div>`).join("")+
+      `</div>`;
+  }
+  el.innerHTML=`<div class="hd"><span class="nid">#no.${b.id}</span><span class="nm">${esc(b.name)}</span>${b.flag?`<span class="fg">${b.flag}</span>`:""}</div>
+   <div class="bd"><div class="duty">${esc(b.duty||"")}</div>${b.children?`<span class="nx" aria-expanded="false">下钻 ${b.children.length}</span>`:""}${plist}</div>`;
+  if(b.st){const s=document.createElement("span");s.className="stmp st-"+b.st;
+    s.textContent=STZH[b.st];el.appendChild(s)}
+  return el;
+}
+function syncSize(b){
+  const w=b.el.offsetWidth,h=b.el.offsetHeight;
+  b.w=w;
+  const ins=edges.filter(e=>e.b===b.id&&e.kind!=="child").length;
+  const outs=edges.filter(e=>e.a===b.id&&e.kind!=="child").length;
+  const need=20+Math.max(ins,outs)*9+10;
+  b.h=Math.max(h,need);
+  b.el.style.height=b.h+"px";
+}
+nodes.forEach(b=>{
+  if(b.parent)return;
+  b._ox=b.x;b._oy=b.y;b._region=DOMAIN_DEFS.find(d=>d.blocks.includes(b)||d.blocks.some(x=>(x.children||[]).includes(b)));
+  b.el=nodeEl(b);nodesLayer.appendChild(b.el);
+});
+nodes.forEach(b=>{if(!b.parent)syncSize(b)});
+/* Size-aware de-overlap: the wiring corridor is 52px, not 0 — load-time stacking is unacceptable */
+function deOverlap(ms,weight){
+  const COR=26;
+  for(let it=0;it<2;it++)for(let i=0;i<ms.length;i++)for(let j=i+1;j<ms.length;j++){
+    const p=ms[i],q=ms[j];
+    const pw=p.w||NW,qw=q.w||NW;
+    const ox=Math.min(p.x+pw,q.x+qw)-Math.max(p.x,q.x)+2*COR;
+    const oy=Math.min(p.y+p.h,q.y+q.h)-Math.max(p.y,q.y)+2*COR;
+    if(ox>0&&oy>0){
+      if(ox<oy){const f=(ox/2+1)*weight;
+        if(q.x>=p.x){p.x-=f;q.x+=f}else{p.x+=f;q.x-=f}}
+      else{const f=(oy/2+1)*weight;
+        if(q.y>=p.y){p.y-=f;q.y+=f}else{p.y+=f;q.y-=f}}
+    }
+  }
+}
+function measurePorts(){
+  nodes.forEach(b=>{
+    if(b.parent||!b.el)return;
+    const rows=b.el.querySelectorAll(".plist .pr");
+    if(!rows.length){b._portMap=null;return}
+    const ins=edges.filter(x=>x.b===b.id&&x.kind!=="child");
+    const outs=edges.filter(x=>x.a===b.id&&x.kind!=="child");
+    const m=new Map();
+    [...rows].forEach((row,i)=>{
+      const e=i<ins.length?ins[i]:outs[i-ins.length];if(!e)return;
+      m.set(e,{side:i<ins.length?"left":"right",rel:row.offsetTop+row.offsetHeight/2});
+    });
+    b._portMap=m;
+  });
+}
+/* Regions grow to enclose their content — a hard box fights the solver and the boxes win: residual overlap.
+   Grow-only, origin-anchored (the clamp keeps blocks right/below the origin), so this converges. */
+function fitRegions(){
+  regions.forEach(r=>{
+    let x1=-1e9,y1=-1e9;
+    nodes.forEach(b=>{if(b.parent||!b.el||b._region!==r)return;
+      x1=Math.max(x1,b.x+(b.w||NW));y1=Math.max(y1,b.y+b.h)});
+    if(x1<-1e8)return;
+    if(x1+26>r.w)r.w=x1+26-r.x;
+    if(y1+26>r.h)r.h=y1+26-r.y;
+    r.el.style.width=r.w+"px";r.el.style.height=r.h+"px";
+  });
+}
+(function settle(){
+  const mains=nodes.filter(b=>!b.parent);
+  for(let k=0;k<60;k++){
+    deOverlap(mains,.6);
+    mains.forEach(b=>{
+      const r=b._region;
+      if(r){b.x=Math.max(r.x+12,Math.min(r.x+r.w-(b.w||NW)-12,b.x));
+            b.y=Math.max(r.y+34,Math.min(r.y+r.h-b.h-12,b.y))}
+    });
+    fitRegions();
+  }
+})();
+nodes.forEach(b=>{if(!b.parent){b.el.style.left=b.x+"px";b.el.style.top=b.y+"px"}});
+measurePorts();
+/* ---- Edge geometry: pick the side by relative bearing, ports spread along that side ---- */
+function centerOf(b){return{x:b.x+(b.w||NW)/2,y:b.y+b.h/2}}
+function sideOf(from,to){
+  const a=centerOf(from),b=centerOf(to),dx=b.x-a.x,dy=b.y-a.y;
+  if(Math.abs(dx)>Math.abs(dy)*1.2)return dx>0?"right":"left";
+  return dy>0?"bottom":"top";
+}
+function sidePorts(n,side,kindFilter){
+  /* in-edges take the side where n faces its SOURCE, out-edges where n faces its TARGET — n is the subject both ways */
+  const list=edges.filter(e=>e.kind!==kindFilter&&(
+    (e.b===n.id&&sideOf(n,byId[e.a])===side)||(e.a===n.id&&sideOf(n,byId[e.b])===side)));
+  const horiz=side==="left"||side==="right";
+  list.sort((p,q)=>{
+    const o1=byId[p.a===n.id?p.b:p.a],o2=byId[q.a===n.id?q.b:q.a];
+    return horiz?centerOf(o1).y-centerOf(o2).y:centerOf(o1).x-centerOf(o2).x;
+  });
+  const m=list.length,span=horiz?n.h-20:(n.w||NW)-20;
+  return{list,pos:i=>{
+    if(i<0||i>=m)return horiz?n.h/2:(n.w||NW)/2;
+    if(m===1)return horiz?n.h/2:(n.w||NW)/2;
+    return 10+span*(i/(m-1));
+  }};
+}
+function portPoint(n,side,t){
+  /* t is the offset ALONG the side — add the block origin */
+  switch(side){
+    case"left":return{x:n.x,y:n.y+t};
+    case"right":return{x:n.x+(n.w||NW),y:n.y+t};
+    case"top":return{x:n.x+t,y:n.y};
+    default:return{x:n.x+t,y:n.y+n.h};
+  }
+}
+function edgeGeom(e){
+  const A=byId[e.a],B=byId[e.b];
+  if(e.kind==="child"){
+    const x1=A.x+(A.w||NW)/2,y1=A.y+A.h,x2=B.x+(B.w||CW)/2,y2=B.y,my=(y1+y2)/2;
+    return{d:`M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`,p1:{x:x1,y:y1},p2:{x:x2,y:y2},t2:{x:x2,y:my}};
+  }
+  /* Port override: hub endpoints sit at their connection-list row height, one wire per row */
+  const o1=A._portMap&&A._portMap.get(e),o2=B._portMap&&B._portMap.get(e);
+  const sA=o1?o1.side:sideOf(A,B),sB=o2?o2.side:sideOf(B,A);
+  const pa=o1?null:sidePorts(A,sA,"child"),pb=o2?null:sidePorts(B,sB,"child");
+  const p1=o1?(o1.side==="left"?{x:A.x,y:A.y+o1.rel}:{x:A.x+(A.w||NW),y:A.y+o1.rel})
+             :portPoint(A,sA,pa.pos(pa.list.indexOf(e)));
+  const p2=o2?(o2.side==="left"?{x:B.x,y:B.y+o2.rel}:{x:B.x+(B.w||NW),y:B.y+o2.rel})
+             :portPoint(B,sB,pb.pos(pb.list.indexOf(e)));
+  const dx=p2.x-p1.x,dy=p2.y-p1.y,dist=Math.hypot(dx,dy);
+  const K=Math.min(170,Math.max(14,dist*.45));
+  const norm=s=>({left:[-1,0],right:[1,0],top:[0,-1],bottom:[0,1]}[s]);
+  const[ax,ay]=norm(sA),[bx,by]=norm(sB);
+  const c1={x:p1.x+ax*K,y:p1.y+ay*K},c2={x:p2.x+bx*K,y:p2.y+by*K};
+  return{d:`M${p1.x},${p1.y} C${c1.x},${c1.y} ${c2.x},${c2.y} ${p2.x},${p2.y}`,p1,p2,c2};
+}
+function mkEdge(e){
+  const col=edgeColor(e);
+  const v=document.createElementNS(NS,"path");v.classList.add("wire");
+  if(e.kind==="flow")v.classList.add("flow");
+  v.setAttribute("stroke",col);v.setAttribute("stroke-width",e.kind==="flow"?2.2:1.4);
+  if(e.kind==="child")v.setAttribute("stroke-dasharray","4 4");
+  v.setAttribute("vector-effect","non-scaling-stroke");
+  const h=document.createElementNS(NS,"path");h.classList.add("wire","hit");
+  h.dataset.kind=e.kind;if(e.kind==="flow")h.dataset.f=e.f;
+  const ar=document.createElementNS(NS,"path");ar.classList.add("arr");
+  ar.setAttribute("fill",col);ar.style.opacity=0;
+  wiresSvg.append(v,h,ar);e.el=v;e.hit=h;e.arr=ar;
+  if(e.kind==="flow"){
+    e.chevs=[0,1].map(()=>{
+      const c=document.createElementNS(NS,"path");
+      c.classList.add("chev");c.setAttribute("stroke",col);
+      c.setAttribute("stroke-width",2.4);c.setAttribute("vector-effect","non-scaling-stroke");
+      c.setAttribute("d","M-5,-4 L3,0 L-5,4");
+      c.style.opacity=0;wiresSvg.appendChild(c);return c;
+    });
+  }
+  const c1=document.createElementNS(NS,"circle"),c2=document.createElementNS(NS,"circle");
+  c1.setAttribute("r",4);c2.setAttribute("r",4.2);c1.classList.add("port");c2.classList.add("port");
+  c1.setAttribute("fill","var(--paper)");c1.setAttribute("stroke",col);
+  c2.setAttribute("fill",col);c2.setAttribute("stroke",col);
+  portsSvg.append(c1,c2);e.g1=c1;e.g2=c2;
+}
+edges.forEach(mkEdge);
+function arrowGeom(p2,c2){
+  const tx=p2.x-c2.x,ty=p2.y-c2.y,l=Math.hypot(tx,ty)||1,ux=tx/l,uy=ty/l;
+  const tipx=p2.x-ux*5,tipy=p2.y-uy*5;
+  const bx=tipx-ux*9,byy=tipy-uy*9,px=-uy,py=ux;
+  return`M${tipx},${tipy} L${bx+px*4.5},${byy+py*4.5} L${bx-px*4.5},${byy-py*4.5} Z`;
+}
+function drawAll(){
+  edges.forEach(e=>{
+    const g=edgeGeom(e);
+    e.el.setAttribute("d",g.d);e.hit.setAttribute("d",g.d);
+    e.g1.setAttribute("cx",g.p1.x);e.g1.setAttribute("cy",g.p1.y);
+    e.g2.setAttribute("cx",g.p2.x);e.g2.setAttribute("cy",g.p2.y);
+    if(e.arr)e.arr.setAttribute("d",arrowGeom(g.p2,g.c2||g.p2));
+  });
+}
+drawAll();
+/* Legend rows generated from FLOW_DEFS / LAYER_DEFS — vocabulary lives in the data zone only */
+const flrows=document.getElementById("flrows");
+FLOW_DEFS.forEach(fd=>{const d=document.createElement("div");d.className="fl";d.dataset.f=fd.f;
+  d.innerHTML=`<span class="sw" style="border-color:var(--f${fd.f})"></span>${esc(fd.n)}`;flrows.appendChild(d)});
+const layrows=document.getElementById("layrows");
+LAYER_DEFS.forEach(l=>{const s=document.createElement("span");
+  s.innerHTML=`<i style="background:var(--lc-${l.k})"></i>${esc(l.name)}`;layrows.appendChild(s)});
+/* ---- Highlight state machine: soloF(lock chain) > focusN(click focus) > hoverF(hover wire) > hoverN(hover card) ---- */
+let soloF=null,hoverF=null,hoverN=null,focusN=null,depOff=false,sel=null;
+const flowNodes=FLOW_DEFS.map(fd=>new Set(fd.e.flat()));
+function neighbors(b){const s=new Set([b.id]);
+  edges.forEach(e=>{if(e.a===b.id)s.add(e.b);if(e.b===b.id)s.add(e.a)});return s}
+/* Marching chevrons, only while a chain is active */
+const chevMove=typeof matchMedia==="function"&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+let chevRun=false;
+function chevStep(now){
+  const act=edges.filter(x=>x._active&&x.chevs);
+  edges.forEach(x=>{if(x.chevs&&!x._active)x.chevs.forEach(c=>c.style.opacity=0)});
+  if(!act.length){chevRun=false;return}
+  act.forEach(e=>{
+    let L=0;try{L=e.el.getTotalLength()}catch(_){}
+    if(!L)return;
+    /* speed modulated by wire length: short wires slow and steady, long wires capped */
+    const v=Math.min(130,Math.max(30,L/3.5));
+    const base=now/1000*v;
+    e.chevs.forEach((c,i)=>{
+      const d=(base+i*L/2)%L;
+      const p=e.el.getPointAtLength(d),q=e.el.getPointAtLength(Math.min(d+3,L));
+      const ang=Math.atan2(q.y-p.y,q.x-p.x)*180/Math.PI;
+      c.setAttribute("transform",`translate(${p.x},${p.y}) rotate(${ang})`);
+      c.style.opacity=1;
+    });
+  });
+  requestAnimationFrame(chevStep);
+}
+function repaint(){
+  const hasCtx=soloF!=null||focusN||hoverF!=null||hoverN;
+  edges.forEach(e=>{
+    let on=true,active=false;
+    if(soloF!=null){on=e.kind==="flow"&&e.f===soloF}
+    else if(focusN){on=neighbors(focusN).has(e.a)&&neighbors(focusN).has(e.b)}
+    else if(hoverF!=null){on=e.kind==="flow"&&e.f===hoverF}
+    else if(hoverN){on=e.kind!=="child"&&neighbors(hoverN).has(e.a)&&neighbors(hoverN).has(e.b)}
+    active=on&&hasCtx;
+    if(e.kind==="dep"&&depOff)on=false;
+    e.el.style.opacity=on?(e.kind==="dep"?.55:1):.07;
+    e.el.setAttribute("stroke-width",active&&e.kind==="flow"?3:(e.kind==="flow"?2.2:1.4));
+    e.g1.style.opacity=e.g2.style.opacity=on?1:.12;
+    /* chain arrows always on; chevrons march only when active */
+    e.arr.style.opacity=e.kind==="flow"?(on?(active?1:.9):.07):(e.kind==="dep"?(on?.5:.05):0);
+    e._active=active&&e.kind==="flow";
+  });
+  if(!chevMove&&edges.some(x=>x._active)&&!chevRun){chevRun=true;requestAnimationFrame(chevStep)}
+  nodes.forEach(b=>{if(!b.el)return;
+    let dim=false;
+    if(soloF!=null)dim=!flowNodes[soloF].has(b.id);
+    else if(focusN)dim=!neighbors(focusN).has(b.id);
+    else if(hoverN&&!neighbors(hoverN).has(b.id)&&b!==hoverN)dim=true;
+    b.el.classList.toggle("dim",dim&&b!==sel)});
+}
+wiresSvg.addEventListener("pointerover",e=>{const k=e.target.dataset&&e.target.dataset.kind;
+  if(k==="flow"){hoverF=+e.target.dataset.f;repaint()}
+  else if(k==="dep"){const ed=edges.find(x=>x.hit===e.target);
+    if(ed)statusEl.textContent=`#${ed.a} → #${ed.b} · ${TAGZH[ed.tag]||ed.tag||"dep"}${ed.lab?" · "+ed.lab:""}`}});
+wiresSvg.addEventListener("pointerout",()=>{hoverF=null;repaint();updateStatus()});
+wiresSvg.addEventListener("click",e=>{
+  if(!e.target.dataset||e.target.dataset.kind!=="flow")return;
+  const f=+e.target.dataset.f;soloF=soloF===f?null:f;
+  document.querySelectorAll("#chains .fl[data-f]").forEach(x=>x.classList.toggle("off",soloF!=null&&+x.dataset.f!==soloF));
+  repaint();
+});
+document.querySelectorAll("#chains .fl[data-f]").forEach(fl=>fl.onclick=()=>{
+  const f=+fl.dataset.f;soloF=soloF===f?null:f;
+  document.querySelectorAll("#chains .fl[data-f]").forEach(x=>x.classList.toggle("off",soloF!=null&&+x.dataset.f!==soloF));
+  repaint();
+});
+document.getElementById("depfl").onclick=()=>{
+  depOff=!depOff;document.getElementById("depfl").classList.toggle("off",depOff);repaint();
+};
+nodesLayer.addEventListener("pointerover",e=>{const n=e.target.closest(".node");
+  hoverN=n?byId[+n.dataset.id]:null;repaint()});
+nodesLayer.addEventListener("pointerout",e=>{if(e.target.closest(".node")){hoverN=null;repaint()}});
+/* ---- Viewport ---- */
+let z=.62,px=20,py=16;
+let farOn=false;
+function apply(){world.style.transform=`translate(${px}px,${py}px) scale(${z})`;
+  /* hysteresis band: hide below .46, restore above .54 — zooming near the boundary never strobes */
+  if(!farOn&&z<.46){farOn=true;world.classList.add("far")}
+  else if(farOn&&z>.54){farOn=false;world.classList.remove("far")}
+  updateStatus()}
+let _lastStatus="";
+function updateStatus(){const w=edges.filter(e=>e.kind!=="child").length;
+  const wk=nodes.filter(b=>b.st==="w"||b.st==="o").length;
+  const s=`${nodes.filter(b=>!b.parent).length} 块 · ${w} 线 · ${FLOW_DEFS.length} 链路 · 已走 ${wk}/${nodes.length} · 缩放 ${Math.round(z*100)}% · 数据 ${META.date} · 役毕即弃`;
+  if(s!==_lastStatus){_lastStatus=s;statusEl.textContent=s}}
+apply();
+function fit(){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  nodes.forEach(b=>{if(b.parent&&!b.el)return;x0=Math.min(x0,b.x);y0=Math.min(y0,b.y);
+    x1=Math.max(x1,b.x+(b.w||NW));y1=Math.max(x1,b.y+b.h)});
+  const r=stage.getBoundingClientRect();
+  z=Math.min(1.1,.92*Math.min(r.width/(x1-x0+80),r.height/(y1-y0+90)));
+  px=(r.width-(x1-x0)*z)/2-x0*z;py=Math.max(56,(r.height-(y1-y0)*z)/2-y0*z);apply()}
+fit();
+let wheelRaf=0,zoomTimer=0;
+stage.addEventListener("wheel",e=>{e.preventDefault();
+  const r=stage.getBoundingClientRect(),f=Math.exp(-e.deltaY*.0012),z2=Math.min(2.6,Math.max(.22,z*f)),k=z2/z;
+  px=e.clientX-r.left-k*(e.clientX-r.left-px);py=e.clientY-r.top-k*(e.clientY-r.top-py);z=z2;
+  if(!wheelRaf)wheelRaf=requestAnimationFrame(()=>{wheelRaf=0;apply()});
+  /* ghost text while zooming; one clean fade-in at the new scale after the wheel settles */
+  world.classList.add("zooming");clearTimeout(zoomTimer);
+  /* long enough that slow-scroll micro-pauses do not cycle the ghost on and off */
+  zoomTimer=setTimeout(()=>world.classList.remove("zooming"),300);
+},{passive:false});
+/* ---- Dragging: cards (children follow) / pan; empty click (not a drag) releases focus ---- */
+let panDrag=null,nodeDrag=null,downInfo=null;
+stage.addEventListener("pointerdown",e=>{
+  const nEl=e.target.closest(".node");
+  if(nEl&&e.target.closest(".nx")){downInfo=null;return}
+  downInfo={x:e.clientX,y:e.clientY,onNode:!!nEl};
+  if(nEl){const b=byId[+nEl.dataset.id];nodeDrag={b,sx:e.clientX,sy:e.clientY,ox:b.x,oy:b.y};nEl.setPointerCapture(e.pointerId)}
+  else{panDrag={sx:e.clientX,sy:e.clientY,ox:px,oy:py};stage.classList.add("dragging")}
+});
+stage.addEventListener("pointermove",e=>{
+  if(nodeDrag){const dx=(e.clientX-nodeDrag.sx)/z,dy=(e.clientY-nodeDrag.sy)/z;
+    nodeDrag.b.x=nodeDrag.ox+dx;nodeDrag.b.y=nodeDrag.oy+dy;
+    nodeDrag.b.el.style.left=nodeDrag.b.x+"px";nodeDrag.b.el.style.top=nodeDrag.b.y+"px";
+    (nodeDrag.b.children||[]).forEach(c=>{if(c.el){c.x+=dx;c.y+=dy;c.el.style.left=c.x+"px";c.el.style.top=c.y+"px"}});
+    drawAll()}
+  else if(panDrag){px=panDrag.ox+e.clientX-panDrag.sx;py=panDrag.oy+e.clientY-panDrag.sy;apply()}
+});
+stage.addEventListener("pointerup",e=>{
+  const wasDrag=downInfo&&Math.hypot(e.clientX-downInfo.x,e.clientY-downInfo.y)>5;
+  if(!wasDrag&&!(downInfo&&downInfo.onNode)){clearFocus()}
+  panDrag=null;nodeDrag=null;downInfo=null;stage.classList.remove("dragging");
+});
+/* empty click / drill release clears only the highlight — the dossier stays open for side-by-side
+   reading; it closes via ✕ alone, or with its subject when a collapsed drill hides the shown child */
+function clearFocus(){
+  focusN=null;sel=null;
+  nodes.forEach(b=>b.el&&b.el.classList.remove("sel"));
+  repaint();
+}
+function closeDetail(){
+  focusN=null;sel=null;
+  nodes.forEach(b=>b.el&&b.el.classList.remove("sel"));
+  detail.className="";
+  repaint();
+}
+function focusOn(b){
+  if(sel&&sel.el)sel.el.classList.remove("sel");
+  sel=b;focusN=b;if(b.el)b.el.classList.add("sel");
+  repaint();
+}
+document.getElementById("zi").onclick=()=>{z=Math.min(2.6,z*1.25);apply()};
+document.getElementById("zo").onclick=()=>{z=Math.max(.22,z/1.25);apply()};
+document.getElementById("zf").onclick=fit;
+/* ---- Auto-tidy: edge springs + breathing room + home anchors + hard collision, clamped per region.
+   Anchored RESTORE, not re-layout: everything relaxes back toward the authored positions. ---- */
+let tidyRun=false;
+document.getElementById("zt").onclick=()=>{
+  if(tidyRun)return;tidyRun=true;
+  const mains=nodes.filter(b=>!b.parent&&b.el);
+  mains.forEach(b=>(b.children||[]).forEach(c=>{
+    if(c.el)c._toff={x:c.x-b.x,y:c.y-b.y}}));
+  let a=1;
+  (function step(){
+    mains.forEach(b=>{b.fx=0;b.fy=0});
+    /* breathing room: soft push between near neighbours */
+    for(let i=0;i<mains.length;i++)for(let j=i+1;j<mains.length;j++){
+      const p=mains[i],q=mains[j];
+      let dx=q.x-p.x,dy=q.y-p.y,d=Math.hypot(dx,dy)||1;
+      if(d<245){const f=(245-d)*.025*a;dx/=d;dy/=d;p.fx-=dx*f;p.fy-=dy*f;q.fx+=dx*f;q.fy+=dy*f}
+    }
+    /* edge springs */
+    edges.forEach(e=>{
+      if(e.kind==="child")return;
+      const p=byId[e.a],q=byId[e.b];if(!p.el||!q.el)return;
+      let dx=q.x-p.x,dy=q.y-p.y,d=Math.hypot(dx,dy)||1;
+      const rest=e.kind==="flow"?270:225;
+      const f=(d-rest)*.012*a;dx/=d;dy/=d;p.fx+=dx*f;p.fy+=dy*f;q.fx-=dx*f;q.fy-=dy*f;
+    });
+    /* home anchors + integrate */
+    mains.forEach(b=>{
+      b.fx+=(b._ox-b.x)*.04*a;b.fy+=(b._oy-b.y)*.04*a;
+      b.x+=b.fx;b.y+=b.fy;
+    });
+    /* hard collision: true rect overlap pushed apart along the shorter axis */
+    deOverlap(mains,.6);
+    /* region clamp + children follow the offset captured at grab */
+    mains.forEach(b=>{
+      const r=b._region;
+      if(r){b.x=Math.max(r.x+12,Math.min(r.x+r.w-(b.w||NW)-12,b.x));
+            b.y=Math.max(r.y+34,Math.min(r.y+r.h-b.h-12,b.y))}
+      b.el.style.left=b.x+"px";b.el.style.top=b.y+"px";
+      (b.children||[]).forEach(c=>{if(c.el&&c._toff){
+        c.x=b.x+c._toff.x;c.y=b.y+c._toff.y;
+        c.el.style.left=c.x+"px";c.el.style.top=c.y+"px"}});
+    });
+    fitRegions();
+    drawAll();
+    a*=.93;
+    if(a>.02)requestAnimationFrame(step);else tidyRun=false;
+  })();
+};
+/* ---- Drill-down ---- */
+function openDrill(host,force){
+  const btn=host.el.querySelector(".nx");const open=btn?btn.getAttribute("aria-expanded")==="true":false;
+  if(open&&!force){btn.setAttribute("aria-expanded","false");
+    host.children.forEach(c=>{if(c.el){c.el.remove();c.el=null}});
+    for(let i=edges.length-1;i>=0;i--)if(edges[i].kind==="child"&&edges[i].a===host.id){
+      edges[i].el.remove();edges[i].hit.remove();edges[i].g1.remove();edges[i].g2.remove();edges.splice(i,1)}
+    if(sel&&sel.parent===host&&!sel.el)closeDetail();
+    drawAll();return}
+  if(!open&&btn)btn.setAttribute("aria-expanded","true");
+  host.children.forEach((c,i)=>{
+    if(c.el)return;
+    c.w=CW;c.x=host.x-20+i*(CW+16);c.y=host.y+host.h+46;c.h=CHD;
+    c._ox=c.x;c._oy=c.y;
+    c.el=nodeEl(c);c.el.style.left=c.x+"px";c.el.style.top=c.y+"px";
+    nodesLayer.appendChild(c.el);
+    edges.push({a:host.id,b:c.id,kind:"child"});
+    /* drill edges need their own SVG elements — bare objects would kill drawAll here */
+    mkEdge(edges[edges.length-1]);
+  });
+  drawAll();
+}
+nodesLayer.addEventListener("click",e=>{
+  const btn=e.target.closest(".nx");
+  if(btn){const host=byId[+btn.closest(".node").dataset.id];openDrill(host);
+    /* drill joins the focus state machine: expand = focus host, collapse = release */
+    if(host.children[0]&&host.children[0].el)focusOn(host);else clearFocus();
+    return}
+  const nEl=e.target.closest(".node");if(nEl)select(+nEl.dataset.id);
+});
+/* ---- Dossier ---- */
+const detail=document.getElementById("detail");
+const FLAGS={"?":"未验证","!":"矛盾","△":"脆弱"};
+function renderSt(b){const box=detail.querySelector(".stw");if(!box)return;
+  box.querySelectorAll("button").forEach(x=>x.classList.toggle("on",(b.st||"")===(x.dataset.st||"")))}
+function select(id){
+  const b=byId[id];if(!b)return;
+  if(b.parent&&!b.el)openDrill(b.parent,true);
+  focusOn(b);
+  detail.className="open";
+  const rows=[["职责",b.duty],["知道",b.know],["不许知道",b.unknow],["流经",b.data],["插座",b.ports]]
+    .filter(r=>r[1]).map(r=>`<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join("");
+  const flows=FLOW_DEFS.filter(f=>f.e.some(([a,c])=>a===id||c===id)).map(f=>f.n).join(" · ");
+  /* Dependency provenance: → outgoing, ← incoming, with tag badge and optional note */
+  const deps=edges.filter(e=>e.kind==="dep"&&(e.a===id||e.b===id)).map(e=>{
+    const out=e.a===id,o=out?e.b:e.a;
+    return`${out?"→":"←"} <a data-id="${o}">#no.${o} ${esc(byId[o].name)}</a>`+
+      `<span class="tg">${TAGZH[e.tag]||e.tag||"-"}</span>${e.lab?" "+esc(e.lab):""}`}).join("<br>");
+  detail.innerHTML=`<button class="close" aria-label="关闭">✕</button>
+   <div class="did">#no.${b.id}</div><h2>${esc(b.name)}</h2><span class="lay">${esc(b.layer)}</span>
+   <div class="stw" aria-label="走查状态">${[["","未走"],["r","读过"],["w","走查"],["o","实跑"]].map(([v,t])=>
+     `<button data-st="${v}"${((b.st||"")===v)?" class='on'":""}>${t}</button>`).join("")}</div>
+   <dl>${rows}
+   <dt>所在链路</dt><dd>${esc(flows||"—")}</dd></dl>
+   ${b.note?`<div class="note">${b.flag?`<span class="nflag">${b.flag} ${FLAGS[b.flag]||""}</span> · `:""}${esc(b.note)}</div>`:""}
+   ${b.children?`<dt>子块</dt><dd>${b.children.map(c=>`<a data-id="${c.id}">#no.${c.id} ${esc(c.name)}</a>`).join("<br>")}</dd>`:""}
+   ${deps?`<dt>依赖 · 来源</dt><dd class="dps">${deps}</dd>`:""}
+   <dt>可信标注</dt><dd class="files">${b.files.map(esc).join("<br>")}</dd>`;
+  detail.querySelector(".close").onclick=ev=>{ev.stopPropagation();closeDetail()};
+  detail.querySelectorAll(".stw button").forEach(x=>x.onclick=ev=>{ev.stopPropagation();
+    setState(b,x.dataset.st||null)});
+  detail.querySelectorAll("a[data-id]").forEach(a=>a.onclick=ev=>{ev.preventDefault();
+    centerOn(+a.dataset.id)});
+  repaint();
+}
+function centerOn(id){
+  const b=byId[id];if(!b)return;
+  if(b.parent&&!b.el)openDrill(b.parent,true);
+  const r=stage.getBoundingClientRect();
+  z=Math.max(z,.85);px=r.width/2-(b.x+(b.w||NW)/2)*z;py=r.height/2-(b.y+b.h/2)*z;apply();
+  select(id);
+}
+/* ---- Find ---- */
+const q=document.getElementById("q"),hits=document.getElementById("hits");
+q.addEventListener("input",()=>{
+  const s=q.value.trim().toLowerCase();
+  if(!s){hits.hidden=true;nodes.forEach(b=>b.el&&b.el.classList.remove("dim"));return}
+  const list=nodes.filter(b=>b.el&&(b.el.dataset.s.includes(s)||String(b.id)===s.replace("#","")));
+  nodes.forEach(b=>b.el&&b.el.classList.toggle("dim",!list.includes(b)));
+  hits.hidden=false;
+  hits.innerHTML=list.slice(0,12).map(b=>`<div data-id="${b.id}"><b style="font-family:var(--mono)">#${b.id}</b> ${esc(b.name)}</div>`).join("")
+    ||`<div style="color:var(--ink-2)">无匹配</div>`;
+  hits.querySelectorAll("div[data-id]").forEach(d=>d.onclick=()=>{hits.hidden=true;q.value="";
+    nodes.forEach(b=>b.el&&b.el.classList.remove("dim"));centerOn(+d.dataset.id)});
+});
+q.addEventListener("keydown",e=>{
+  if(e.key!=="Enter")return;
+  const s=q.value.trim().toLowerCase();if(!s)return;
+  const first=nodes.find(b=>b.el&&b.el.dataset.s.includes(s))||byId[+s.replace("#","")];
+  if(first){hits.hidden=true;centerOn(first.id)}
+});
+window.addEventListener("keydown",e=>{
+  if(/INPUT|TEXTAREA/.test(document.activeElement.tagName))return;
+  if(e.key==="l"||e.key==="L"){["chains","state"].forEach(id=>{
+    const el=document.getElementById(id);el.style.display=el.style.display==="none"?"":"none"})}
+  if(e.key==="f"||e.key==="F"){e.preventDefault();q.focus()}
+});
+document.getElementById("helpbtn").onclick=ev=>{ev.stopPropagation();
+  const h=document.getElementById("help");h.hidden=!h.hidden};
+</script>
+</body>
+</html>

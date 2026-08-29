@@ -1,0 +1,52 @@
+/* Drafting Table — design tokens (canonical, sole color source)
+   Extracted from a gpt-image reference render, then revised to the values
+   validated in the hapilon prototype (A-series canvas). Where the extracted
+   approximation and the validated prototype differed, the prototype won —
+   e.g. --accent: oklch(45% .13 265) → oklch(47% .13 255).
+   The canvas template carries these inline in :root; if you re-theme, change
+   them HERE and in :root together — never improvise colors mid-map. */
+
+:root{
+  /* ---- paper: cream vellum, never "web white" — the tool's object-feel ---- */
+  --paper:oklch(95.5% .028 95);    /* canvas ground */
+  --paper-2:oklch(92.5% .032 93);  /* secondary face: inputs, legend, badges */
+  --panel:oklch(98% .014 95);      /* card surface, one step whiter than paper */
+
+  /* ---- ink: warm brown-black, not pure black ---- */
+  --ink:oklch(27% .025 80);        /* primary text, key borders */
+  --ink-2:oklch(47% .03 85);       /* secondary text, card borders, dependency wires */
+  --hair:oklch(83% .03 90);        /* hairline separators */
+  --grid:oklch(90.5% .025 95);     /* millimeter grid, half a step darker than paper */
+
+  /* ---- accent: drafting blue, the ONLY UI emphasis color (focus/links/brand/stamps) ---- */
+  --accent:oklch(47% .13 255);     /* validated in prototype; supersedes the extracted 45% .13 265 */
+
+  /* ---- flow chains: saturated-but-greyed drafting colors, never neon ---- */
+  --f0:oklch(46% .13 265);         /* blue */
+  --f1:oklch(46% .10 148);         /* green */
+  --f2:oklch(60% .13 60);          /* amber — also the note-flag color (?/!/△) */
+  --f3:oklch(48% .11 305);         /* violet */
+
+  /* ---- layer slots: card title-strip colors, one slot per project stratum.
+          Slots are mechanism; the NAMES are project vocabulary (see SKILL). ---- */
+  --lc-p:oklch(70% .025 260);      /* slot p — pale (dark text) */
+  --lc-d:oklch(52% .10 260);       /* slot d — blue */
+  --lc-k:oklch(48% .10 300);       /* slot k — violet */
+  --lc-e:oklch(50% .10 165);       /* slot e — green */
+  --lc-c:oklch(62% .12 70);        /* slot c — amber */
+
+  /* ---- region washes: reuse the flow-hue families at low alpha, never new hues.
+          tint "H S% L%" → border hsl(H S% L% / .38) · ground / .045 ·
+          label bg / .10 · label color / .85 ---- */
+
+  /* ---- type division: serif = brand title ONLY · mono = ALL instrument chrome
+          (labels, legend, status bar, dossier keys, stamps) · sans = body prose.
+          One font crossing its lane breaks the instrument feel. ---- */
+  --serif:Georgia,"Times New Roman","Songti SC",serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"PingFang SC",monospace;
+  --sans:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+
+  /* ---- geometry: small radii, drafting feel rejects puffiness ---- */
+  --r-s:3px;
+  --r-m:5px;
+}
