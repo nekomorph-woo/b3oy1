@@ -32,7 +32,10 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);f
    repeating-linear-gradient(90deg,transparent 0 23px,var(--grid) 23px 24px);
   cursor:grab;touch-action:none}
 #stage.dragging{cursor:grabbing}
-#world{position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0}
+#world{position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0;user-select:none}
+/* user-select:none — a pan drag sweeps the moving world under the cursor and native selection
+   grabs the region labels (the only bare text in here); on Windows every selection wakes a
+   popup tool (划词). The whole world is one drag surface: nothing inside it is selectable. */
 /* no will-change here: it keeps the world on a stale GPU raster and text goes soft after zoom */
 #wires,#ports{position:absolute;left:0;top:0;overflow:visible}
 #ports{pointer-events:none}
@@ -621,6 +624,10 @@ stage.addEventListener("pointermove",e=>{
 stage.addEventListener("pointerup",e=>{
   const wasDrag=downInfo&&Math.hypot(e.clientX-downInfo.x,e.clientY-downInfo.y)>5;
   if(!wasDrag&&!(downInfo&&downInfo.onNode)){clearFocus()}
+  /* a finished drag leaves no selection behind (popup tools fire on any selection);
+     only world-contained ones die — HUD/dossier text stays selectable for copying */
+  const sl=getSelection();
+  if(wasDrag&&sl.rangeCount&&!sl.isCollapsed&&world.contains(sl.anchorNode))sl.removeAllRanges();
   panDrag=null;nodeDrag=null;downInfo=null;stage.classList.remove("dragging");
 });
 /* empty click / drill release clears only the highlight — the dossier stays open for side-by-side
